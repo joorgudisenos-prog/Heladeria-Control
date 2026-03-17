@@ -11,17 +11,14 @@
         nav { background: var(--primary); padding: 1rem; display: flex; gap: 10px; position: sticky; top: 0; z-index: 100; }
         nav button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
         nav button.active { background: white; color: var(--primary); font-weight: bold; }
-        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 12px; shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .section { display: none; }
         .section.active { display: block; }
-        .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-card { padding: 15px; border-radius: 8px; background: #f8fafc; border-left: 5px solid var(--primary); }
-        .stat-card h3 { margin: 0; font-size: 0.8rem; color: #64748b; }
-        .stat-card p { margin: 5px 0 0; font-size: 1.5rem; font-weight: bold; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; }
+        input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        button.main-btn { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .badge-pending { background: #ffedd5; color: #9a3412; }
     </style>
 </head>
 <body>
@@ -33,131 +30,77 @@
 
 <div class="container">
     <div id="inventario" class="section active">
-        <h2>📦 Gestión de Stock</h2>
-        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-            <input type="text" id="inv-nombre" placeholder="Nombre Helado">
-            <input type="number" id="inv-stock" placeholder="Cantidad">
+        <h2>📦 Inventario Helados Cali</h2>
+        <div class="form-grid">
+            <input type="text" id="inv-nombre" placeholder="Nombre">
+            <input type="number" id="inv-stock" placeholder="Stock">
             <input type="number" step="0.01" id="inv-costo" placeholder="Costo $">
             <input type="number" step="0.01" id="inv-precio" placeholder="Venta $">
-            <button onclick="guardarProducto()" style="background:var(--primary); color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">Guardar</button>
+            <button class="main-btn" onclick="guardarProducto()">Guardar Helado</button>
         </div>
         <table id="tabla-inventario">
-            <thead><tr><th>Producto</th><th>Stock</th><th>Costo</th><th>Venta</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Stock</th><th>Costo</th><th>Venta</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="caja" class="section">
-        <h2>💰 Saldo y Ganancias</h2>
-        <div class="grid-stats">
-            <div class="stat-card" style="border-color: var(--warning)">
-                <h3>Tasa BCV hoy</h3>
-                <input type="number" step="0.01" id="tasa-input" onchange="actualizarTasa(this.value)" style="font-size: 1.2rem; width: 100px;">
-            </div>
-            <div class="stat-card" style="border-color: var(--success)">
-                <h3>Ganancia Neta (Mes)</h3>
-                <p id="ganancia-usd">$ 0.00</p>
-                <small id="ganancia-bs">Bs 0.00</small>
-            </div>
-            <div class="stat-card">
-                <h3>Ventas Pendientes</h3>
-                <p id="total-pendientes" style="color: var(--danger)">$ 0.00</p>
-            </div>
-        </div>
-
-        <h3>Historial y Pendientes</h3>
-        <table id="tabla-ventas">
-            <thead><tr><th>Fecha</th><th>Cliente/Producto</th><th>Total $</th><th>Total Bs</th><th>Estado</th></tr></thead>
-            <tbody></tbody>
-        </table>
+        <h2>💰 Saldo (Tasa BCV)</h2>
+        <p>Aquí configuraremos la tasa y las ventas pendientes en el siguiente paso.</p>
     </div>
 </div>
 
 <script>
     const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
-    const supabase = libsupabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // Corregido: Usamos el nombre correcto de la librería
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let tasaActual = 0;
-
-    // NAVEGACIÓN
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         document.getElementById('btn-' + id).classList.add('active');
-        if(id === 'inventario') cargarInventario();
-        if(id === 'caja') cargarCaja();
     }
 
-    // TASA Y SALDOS
-    async function cargarCaja() {
-        // Cargar Tasa
-        const { data: config } = await supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        tasaActual = config.tasa_bcv;
-        document.getElementById('tasa-input').value = tasaActual;
-
-        // Cargar Ventas
-        const { data: ventas } = await supabase.from('ventas').select('*').order('fecha', {ascending: false});
-        const tbody = document.querySelector('#tabla-ventas tbody');
-        tbody.innerHTML = '';
-        
-        let gananciaTotal = 0;
-        let pendientes = 0;
-
-        ventas.forEach(v => {
-            if(v.estado === 'pendiente') pendientes += parseFloat(v.total_usd);
-            // Aquí podrías restar el costo para la ganancia neta real si vinculas con productos
-            if(v.estado === 'pagado') gananciaTotal += parseFloat(v.total_usd) * 0.30; // Ejemplo 30% margen
-
-            tbody.innerHTML += `
-                <tr>
-                    <td>${new Date(v.fecha).toLocaleDateString()}</td>
-                    <td>${v.cliente_nombre || 'Venta Rápida'}</td>
-                    <td>$${v.total_usd}</td>
-                    <td>Bs ${(v.total_usd * v.tasa_momento).toFixed(2)}</td>
-                    <td><span class="badge ${v.estado === 'pendiente' ? 'badge-pending' : ''}">${v.estado.toUpperCase()}</span></td>
-                </tr>
-            `;
-        });
-
-        document.getElementById('ganancia-usd').textContent = `$ ${gananciaTotal.toFixed(2)}`;
-        document.getElementById('ganancia-bs').textContent = `Bs ${(gananciaTotal * tasaActual).toFixed(2)}`;
-        document.getElementById('total-pendientes').textContent = `$ ${pendientes.toFixed(2)}`;
-    }
-
-    async function actualizarTasa(nuevaTasa) {
-        await supabase.from('configuracion').update({ tasa_bcv: nuevaTasa }).eq('id', 1);
-        cargarCaja();
-    }
-
-    // INVENTARIO
     async function cargarInventario() {
-        const { data } = await supabase.from('productos').select('*').order('nombre');
+        const { data, error } = await supabase.from('productos').select('*').order('nombre');
+        if (error) { console.log("Error cargando:", error); return; }
+        
         const tbody = document.querySelector('#tabla-inventario tbody');
         tbody.innerHTML = '';
         data.forEach(p => {
             tbody.innerHTML += `<tr>
                 <td>${p.nombre}</td>
-                <td><strong>${p.stock}</strong></td>
+                <td>${p.stock}</td>
                 <td>$${p.costo}</td>
                 <td>$${p.precio_venta}</td>
-                <td><button onclick="venderDirecto(${p.id}, ${p.precio_venta})" style="background:var(--success); color:white; border:none; padding:5px; border-radius:3px;">Vender</button></td>
             </tr>`;
         });
     }
 
     async function guardarProducto() {
         const nombre = document.getElementById('inv-nombre').value;
-        const stock = document.getElementById('inv-stock').value;
-        const costo = document.getElementById('inv-costo').value;
-        const precio = document.getElementById('inv-precio').value;
+        const stock = parseInt(document.getElementById('inv-stock').value);
+        const costo = parseFloat(document.getElementById('inv-costo').value);
+        const precio = parseFloat(document.getElementById('inv-precio').value);
 
-        await supabase.from('productos').upsert({ nombre, stock, costo, precio_venta: precio }, { onConflict: 'nombre' });
-        cargarInventario();
+        const { error } = await supabase.from('productos').upsert({ 
+            nombre: nombre, 
+            stock: stock, 
+            costo: costo, 
+            precio_venta: precio 
+        }, { onConflict: 'nombre' });
+
+        if (error) {
+            alert("Error: " + error.message);
+        } else {
+            alert("¡Guardado con éxito!");
+            cargarInventario();
+        }
     }
 
-    // Inicializar
     cargarInventario();
 </script>
 </body>
