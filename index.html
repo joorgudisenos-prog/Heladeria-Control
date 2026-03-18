@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v2.3</title>
+    <title>Cali Control v2.4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -134,7 +134,7 @@
 
     async function cargarPOS() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
-        productosLocal = data;
+        productosLocal = data || [];
         renderizarBotonesPOS();
     }
 
@@ -183,34 +183,39 @@
 
     async function finalizarVenta(estado) {
         if(carrito.length === 0) return;
+        
         const totalUsd = carrito.reduce((acc, i) => acc + i.precio_venta, 0);
         const totalCosto = carrito.reduce((acc, i) => acc + i.costo, 0);
         const tasa = parseFloat(document.getElementById('tasa-val').value);
         const cliente = document.getElementById('cliente-nombre').value || 'Cliente Gral';
         const detalle = carrito.map(c => c.nombre).join(', ');
 
-        const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: cliente, productos_detalle: detalle,
-            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, 
-            estado: estado, ganancia_estimada: totalUsd - totalCosto
-        });
+        // Guardar Venta
+        await _supabase.from('ventas').insert([{
+            cliente_nombre: cliente, 
+            productos_detalle: detalle,
+            total_usd: totalUsd, 
+            tasa_momento: tasa, 
+            total_bs: totalUsd * tasa, 
+            estado: estado, 
+            ganancia_estimada: totalUsd - totalCosto
+        }]);
 
-        if(!error) {
-            const conteo = {};
-            carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
-            for (const id in conteo) { await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] }); }
-
-            carrito = [];
-            document.getElementById('cliente-nombre').value = '';
-            
-            // ACTUALIZACIÓN INMEDIATA DE TODOS LOS MÓDULOS
-            await cargarPOS();
-            await cargarHistorial();
-            await cargarCaja();
-            
-            alert("¡Venta Registrada con Éxito!");
-            dibujarCarrito();
+        // Actualizar Stock en BD
+        const conteo = {};
+        carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
+        for (const id in conteo) { 
+            await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] }); 
         }
+
+        // Limpiar y Refrescar
+        carrito = [];
+        document.getElementById('cliente-nombre').value = '';
+        await cargarPOS();
+        await cargarHistorial();
+        await cargarCaja();
+        dibujarCarrito();
+        alert("¡Venta completada!");
     }
 
     async function cargarInventario() {
@@ -268,15 +273,15 @@
     async function eliminarVenta(id) {
         if(confirm("¿Seguro que deseas eliminar esta venta?")) {
             await _supabase.from('ventas').delete().eq('id', id);
-            cargarHistorial();
-            cargarCaja();
+            await cargarHistorial();
+            await cargarCaja();
         }
     }
 
     async function pagarV(id) {
         await _supabase.from('ventas').update({ estado: 'pagado' }).eq('id', id);
-        cargarHistorial();
-        cargarCaja();
+        await cargarHistorial();
+        await cargarCaja();
     }
 
     async function cargarCaja() {
