@@ -3,57 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario Pro - Helados Cali</title>
+    <title>Cali POS - Heladería</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #2563eb; --success: #22c55e; --danger: #ef4444; --dark: #1e293b; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding: 15px; color: var(--dark); }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: var(--primary); margin-top: 0; }
+        :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
         
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
-        input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; width: 85%; }
+        /* Navegación */
+        nav { background: var(--dark); padding: 10px; display: flex; justify-content: center; gap: 10px; sticky; top: 0; z-index: 100; }
+        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        nav button.active { background: var(--primary); font-weight: bold; }
+
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* POS Layout */
+        .pos-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .product-card { background: white; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .product-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .product-card h4 { margin: 0 0 5px 0; font-size: 0.9rem; }
+        .product-card span { color: var(--success); font-weight: bold; }
+
+        /* Carrito */
+        .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 70px; }
+        .cart-item { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
+        .total-box { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .total-row { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold; }
         
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; color: #64748b; font-size: 12px; text-transform: uppercase; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        /* Inputs y Botones */
+        input.client-input { width: 93%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px; }
+        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 1rem; }
         
-        .stock-control { display: flex; align-items: center; gap: 10px; }
-        .btn-qty { width: 35px; height: 35px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; }
-        .btn-plus { background: var(--success); }
-        .btn-minus { background: var(--danger); }
-        .stock-val { font-weight: bold; font-size: 1.1rem; min-width: 30px; text-align: center; }
-        
-        .editable { border-bottom: 1px dashed #2563eb; cursor: pointer; font-weight: 500; }
-        .save-btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        /* Tablas */
+        table { width: 100%; background: white; border-radius: 10px; overflow: hidden; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+        .badge { padding: 4px 8px; border-radius: 5px; font-size: 0.8rem; font-weight: bold; }
+        .bg-pending { background: #fee2e2; color: #991b1b; }
+        .bg-paid { background: #dcfce7; color: #166534; }
     </style>
 </head>
 <body>
 
+<nav>
+    <button onclick="showTab('pos')" id="btn-pos" class="active">🛒 Punto de Venta</button>
+    <button onclick="showTab('inventario')" id="btn-inventario">📦 Inventario</button>
+    <button onclick="showTab('historial')" id="btn-historial">📜 Historial/Deudas</button>
+</nav>
+
 <div class="container">
-    <h2>🍦 Helados Cali - Inventario</h2>
     
-    <div class="form-grid">
-        <input type="text" id="inv-nombre" placeholder="Nuevo Helado">
-        <input type="number" id="inv-stock" placeholder="Stock Inicial">
-        <input type="number" step="0.01" id="inv-costo" placeholder="Costo $">
-        <input type="number" step="0.01" id="inv-precio" placeholder="Venta $">
-        <button class="save-btn" onclick="guardarProducto()">+ Agregar</button>
+    <div id="pos" class="section active">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Punto de Venta</h2>
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; font-weight: bold;">
+                Tasa BCV: <input type="number" id="tasa-val" value="36.50" step="0.01" style="width: 70px; border: none; font-weight: bold; color: var(--primary);">
+            </div>
+        </div>
+        
+        <div class="pos-grid">
+            <div class="products-grid" id="pos-productos">
+                </div>
+            
+            <div class="cart-panel">
+                <h4>Detalle del Pedido</h4>
+                <input type="text" id="cliente-nombre" class="client-input" placeholder="Nombre del Cliente (Opcional)">
+                <div id="carrito-lista">
+                    <p style="color: gray; text-align: center;">Carrito vacío</p>
+                </div>
+                
+                <div class="total-box">
+                    <div class="total-row"><span>Total $:</span> <span id="total-usd">0.00</span></div>
+                    <div class="total-row" style="color: var(--primary); font-size: 1.4rem;"><span>Total Bs:</span> <span id="total-bs">0.00</span></div>
+                </div>
+
+                <button class="btn-action" style="background: var(--success);" onclick="finalizarVenta('pagado')">✅ CONFIRMAR COMPRA</button>
+                <button class="btn-action" style="background: var(--warning);" onclick="finalizarVenta('pendiente')">⏳ PAGO PENDIENTE</button>
+                <button class="btn-action" style="background: #94a3b8;" onclick="limpiarCarrito()">Borrar Todo</button>
+            </div>
+        </div>
     </div>
 
-    <table id="tabla-inventario">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Stock</th>
-                <th>Costo ($)</th>
-                <th>Venta ($)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td colspan="4" style="text-align:center">Cargando...</td></tr>
-        </tbody>
-    </table>
+    <div id="inventario" class="section">
+        <h2>Gestión de Inventario</h2>
+        <p>Usa esta pestaña para agregar nuevos helados y ver el stock actual.</p>
+        <div id="tabla-inv-container"></div>
+    </div>
+
+    <div id="historial" class="section">
+        <h2>Historial de Ventas y Deudas</h2>
+        <table id="tabla-historial">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Total $</th>
+                    <th>Total Bs</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
 </div>
 
 <script>
@@ -62,64 +116,131 @@
     const { createClient } = supabase;
     const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    async function cargarInventario() {
-        const { data, error } = await _supabase.from('productos').select('*').order('nombre');
-        if (error) return console.log(error);
+    let carrito = [];
+    let productosRaw = [];
 
-        const tbody = document.querySelector('#tabla-inventario tbody');
+    // NAVEGACIÓN
+    function showTab(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('btn-' + id).classList.add('active');
+        if(id === 'pos') cargarProductosPOS();
+        if(id === 'historial') cargarHistorial();
+    }
+
+    // CARGAR PRODUCTOS COMO BOTONES
+    async function cargarProductosPOS() {
+        const { data } = await _supabase.from('productos').select('*').gt('stock', 0).order('nombre');
+        productosRaw = data;
+        const grid = document.getElementById('pos-productos');
+        grid.innerHTML = '';
+        
+        data.forEach(p => {
+            grid.innerHTML += `
+                <div class="product-card" onclick="agregarAlCarrito(${p.id})">
+                    <h4>${p.nombre}</h4>
+                    <span>$${p.precio_venta}</span><br>
+                    <small style="color:gray">${p.stock} disp.</small>
+                </div>
+            `;
+        });
+    }
+
+    function agregarAlCarrito(id) {
+        const prod = productosRaw.find(p => p.id === id);
+        carrito.push(prod);
+        renderCarrito();
+    }
+
+    function renderCarrito() {
+        const lista = document.getElementById('carrito-lista');
+        const tasa = parseFloat(document.getElementById('tasa-val').value);
+        lista.innerHTML = '';
+        let total = 0;
+
+        carrito.forEach((item, index) => {
+            total += item.precio_venta;
+            lista.innerHTML += `
+                <div class="cart-item">
+                    <span>${item.nombre}</span>
+                    <span>$${item.precio_venta} <button onclick="quitarDelCarrito(${index})" style="border:none; color:red; cursor:pointer;">x</button></span>
+                </div>
+            `;
+        });
+
+        document.getElementById('total-usd').textContent = total.toFixed(2);
+        document.getElementById('total-bs').textContent = (total * tasa).toFixed(2);
+    }
+
+    function quitarDelCarrito(index) {
+        carrito.splice(index, 1);
+        renderCarrito();
+    }
+
+    function limpiarCarrito() {
+        carrito = [];
+        document.getElementById('cliente-nombre').value = '';
+        renderCarrito();
+    }
+
+    // FINALIZAR VENTA
+    async function finalizarVenta(estado) {
+        if (carrito.length === 0) return alert("El carrito está vacío");
+        
+        const tasa = parseFloat(document.getElementById('tasa-val').value);
+        const totalUsd = carrito.reduce((acc, item) => acc + item.precio_venta, 0);
+        const cliente = document.getElementById('cliente-nombre').value || 'Cliente General';
+
+        const { error } = await _supabase.from('ventas').insert({
+            cliente_nombre: cliente,
+            total_usd: totalUsd,
+            tasa_momento: tasa,
+            total_bs: totalUsd * tasa,
+            estado: estado,
+            productos_detalle: carrito.map(i => i.nombre).join(', ')
+        });
+
+        if (!error) {
+            // Actualizar stock en la base de datos (restar 1 por cada item)
+            for (let item of carrito) {
+                await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); 
+            }
+            alert(estado === 'pagado' ? "✅ Venta Registrada" : "⏳ Registrada como DEUDA");
+            limpiarCarrito();
+            cargarProductosPOS();
+        }
+    }
+
+    // HISTORIAL Y PENDIENTES
+    async function cargarHistorial() {
+        const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending: false});
+        const tbody = document.querySelector('#tabla-historial tbody');
         tbody.innerHTML = '';
 
-        data.forEach(p => {
+        data.forEach(v => {
             tbody.innerHTML += `
                 <tr>
-                    <td><span class="editable" onclick="editarCampo(${p.id}, 'nombre', '${p.nombre}')">${p.nombre}</span></td>
-                    <td>
-                        <div class="stock-control">
-                            <button class="btn-qty btn-minus" onclick="ajustarStock(${p.id}, ${p.stock}, -1)">-</button>
-                            <span class="stock-val">${p.stock}</span>
-                            <button class="btn-qty btn-plus" onclick="ajustarStock(${p.id}, ${p.stock}, 1)">+</button>
-                        </div>
-                    </td>
-                    <td><span class="editable" onclick="editarCampo(${p.id}, 'costo', ${p.costo})">$${p.costo}</span></td>
-                    <td><span class="editable" onclick="editarCampo(${p.id}, 'precio_venta', ${p.precio_venta})">$${p.precio_venta}</span></td>
+                    <td>${new Date(v.fecha).toLocaleDateString()}</td>
+                    <td><strong>${v.cliente_nombre}</strong><br><small>${v.productos_detalle}</small></td>
+                    <td>$${v.total_usd}</td>
+                    <td>Bs ${v.total_bs}</td>
+                    <td><span class="badge ${v.estado === 'pendiente' ? 'bg-pending' : 'bg-paid'}">${v.estado.toUpperCase()}</span></td>
+                    <td>${v.estado === 'pendiente' ? `<button onclick="pagarDeuda(${v.id})">Marcar Pagado</button>` : ''}</td>
                 </tr>
             `;
         });
     }
 
-    async function ajustarStock(id, actual, cambio) {
-        const nuevoStock = actual + cambio;
-        if (nuevoStock < 0) return;
-        await _supabase.from('productos').update({ stock: nuevoStock }).eq('id', id);
-        cargarInventario();
+    async function pagarDeuda(id) {
+        await _supabase.from('ventas').update({ estado: 'pagado' }).eq('id', id);
+        cargarHistorial();
     }
 
-    async function editarCampo(id, columna, valorActual) {
-        const nuevoValor = prompt(`Editar ${columna}:`, valorActual);
-        if (nuevoValor !== null && nuevoValor !== "") {
-            const updateData = {};
-            updateData[columna] = nuevoValor;
-            await _supabase.from('productos').update(updateData).eq('id', id);
-            cargarInventario();
-        }
-    }
-
-    async function guardarProducto() {
-        const nombre = document.getElementById('inv-nombre').value;
-        const stock = parseInt(document.getElementById('inv-stock').value);
-        const costo = parseFloat(document.getElementById('inv-costo').value) || 0;
-        const precio = parseFloat(document.getElementById('inv-precio').value) || 0;
-
-        if (!nombre || isNaN(stock)) return alert("Nombre y Stock obligatorios");
-
-        await _supabase.from('productos').upsert({ nombre, stock, costo, precio_venta: precio }, { onConflict: 'nombre' });
-        
-        document.querySelectorAll('input').forEach(i => i.value = '');
-        cargarInventario();
-    }
-
-    window.onload = cargarInventario;
+    // Inicializar
+    window.onload = () => {
+        cargarProductosPOS();
+    };
 </script>
-
 </body>
 </html>
