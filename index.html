@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v1.2</title>
+    <title>Cali Control v1.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -14,18 +14,11 @@
         .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
-        
-        /* POS Mejorado */
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        
         .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; color: #166534; }
-        .product-btn:hover { border-color: #4ade80; transform: translateY(-2px); }
-        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
-        
+        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; }
         .cart-panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; position: sticky; top: 80px; }
-        .cart-item { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; background: white; padding: 5px 8px; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; }
         .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; }
@@ -40,19 +33,18 @@
 </nav>
 
 <div class="container">
-    
     <div id="pos" class="section active">
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px;">
             <h2>Punto de Venta</h2>
             <div style="background:#e0f2fe; padding:10px; border-radius:8px;">
-                Tasa BCV: <input type="number" id="tasa-val" value="36.50" step="0.01" style="width:70px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
+                Tasa BCV: <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
             </div>
         </div>
         <div class="pos-layout">
-            <div class="products-grid" id="pos-lista"></div>
+            <div id="pos-lista" class="products-grid"></div>
             <div class="cart-panel">
                 <h3>Pedido</h3>
-                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:90%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
+                <input type="text" id="cliente-nombre" placeholder="Nombre Cliente" style="width:90%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
                 <div id="carrito-items" style="min-height:100px; max-height: 300px; overflow-y: auto; border-bottom:1px solid #ddd; margin-bottom:10px;"></div>
                 <div style="margin:10px 0; font-weight:bold;">
                     Total USD: <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
@@ -87,7 +79,6 @@
             <tbody></tbody>
         </table>
     </div>
-
 </div>
 
 <script>
@@ -97,7 +88,17 @@
     const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let carrito = [];
-    let productosLocal = []; // Copia para manejar el stock visualmente
+    let productosLocal = [];
+
+    async function cargarTasaBD() {
+        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
+    }
+
+    async function guardarTasaBD(valor) {
+        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
+        dibujarCarrito(); // Recalcular Bs si hay algo en el carrito
+    }
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -109,8 +110,8 @@
         if(id === 'historial') cargarHistorial();
     }
 
-    // --- POS LÓGICA ---
     async function cargarPOS() {
+        await cargarTasaBD();
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         productosLocal = data;
         renderizarBotonesPOS();
@@ -120,52 +121,29 @@
         const lista = document.getElementById('pos-lista');
         lista.innerHTML = productosLocal.map(p => {
             const agotado = p.stock <= 0;
-            return `
-                <div class="product-btn ${agotado ? 'agotado' : ''}" 
-                     onclick="${agotado ? '' : `agregarAlCarrito(${p.id})`}">
-                    <strong>${p.nombre}</strong><br>
-                    <span>$${p.precio_venta}</span><br>
-                    <small>${agotado ? 'AGOTADO' : `${p.stock} disponibles`}</small>
-                </div>
-            `;
+            return `<div class="product-btn ${agotado ? 'agotado' : ''}" onclick="${agotado ? '' : `agregarAlCarrito(${p.id})`}">
+                <strong>${p.nombre}</strong><br><span>$${p.precio_venta}</span><br><small>${agotado ? 'AGOTADO' : `${p.stock} disp.`}</small>
+            </div>`;
         }).join('');
     }
 
     function agregarAlCarrito(id) {
-        const index = productosLocal.findIndex(p => p.id === id);
-        if (productosLocal[index].stock > 0) {
-            productosLocal[index].stock -= 1; // Descontar del botón
-            carrito.push({...productosLocal[index]}); // Meter al carrito
+        const i = productosLocal.findIndex(p => p.id === id);
+        if (productosLocal[i].stock > 0) {
+            productosLocal[i].stock--;
+            carrito.push({...productosLocal[i]});
             renderizarBotonesPOS();
             dibujarCarrito();
         }
     }
 
-    function quitarDelCarrito(i, idOriginal) {
-        const indexProd = productosLocal.findIndex(p => p.id === idOriginal);
-        productosLocal[indexProd].stock += 1; // Devolver al botón
-        carrito.splice(i, 1);
-        renderizarBotonesPOS();
-        dibujarCarrito();
-    }
-
-    function limpiarCarrito() {
-        // Al limpiar, devolvemos todo al stock local
-        cargarPOS(); 
-        carrito = [];
-        dibujarCarrito();
-    }
-
     function dibujarCarrito() {
         const div = document.getElementById('carrito-items');
-        const tasa = parseFloat(document.getElementById('tasa-val').value);
+        const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
         let total = 0;
         div.innerHTML = carrito.map((item, i) => {
             total += item.precio_venta;
-            return `<div class="cart-item">
-                <span>${item.nombre}</span>
-                <span>$${item.precio_venta} <button onclick="quitarDelCarrito(${i}, ${item.id})" style="color:red; border:none; background:none; cursor:pointer;">x</button></span>
-            </div>`;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${item.nombre}</span><span>$${item.precio_venta}</span></div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
@@ -178,29 +156,22 @@
         const cliente = document.getElementById('cliente-nombre').value || 'Cliente Gral';
         const detalle = carrito.map(c => c.nombre).join(', ');
 
-        // Guardar venta
         await _supabase.from('ventas').insert({
             cliente_nombre: cliente, productos_detalle: detalle,
             total_usd: total, tasa_momento: tasa, total_bs: total * tasa, estado: estado
         });
 
-        // Actualizar stock real en BD (solo de lo vendido)
-        // Agrupamos por ID para hacer menos llamadas
         const conteo = {};
         carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
-        
-        for (const id in conteo) {
-            await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] });
-        }
+        for (const id in conteo) { await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] }); }
 
         carrito = [];
         document.getElementById('cliente-nombre').value = '';
-        alert("¡Listo!");
-        cargarPOS(); // Recargar para asegurar stock real
+        alert("¡Venta Exitosa!");
+        cargarPOS();
         dibujarCarrito();
     }
 
-    // --- INVENTARIO Y OTROS (Sin cambios mayores) ---
     async function cargarInventario() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         const tbody = document.querySelector('#tabla-inv tbody');
@@ -208,24 +179,35 @@
             <tr>
                 <td><strong>${p.nombre}</strong></td>
                 <td>
-                    <button class="btn-stock" style="background:var(--danger)" onclick="modificarStockBD(${p.id}, ${p.stock}, -1)">-</button>
+                    <button class="btn-stock" style="background:var(--danger)" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 5px;">${p.stock}</span>
-                    <button class="btn-stock" style="background:var(--success)" onclick="modificarStockBD(${p.id}, ${p.stock}, 1)">+</button>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
                 <td>$${p.costo}</td><td>$${p.precio_venta}</td>
-                <td><button onclick="editarP(${p.id}, '${p.nombre}', ${p.precio_venta})" style="cursor:pointer;">Editar</button></td>
+                <td><button onclick="editarTodo(${p.id}, '${p.nombre}', ${p.costo}, ${p.precio_venta})">Editar</button></td>
             </tr>
         `).join('');
     }
 
-    async function modificarStockBD(id, actual, cambio) {
-        await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
+    async function editarTodo(id, nombre, costo, precio) {
+        const nNombre = prompt("Nuevo nombre:", nombre);
+        if (nNombre === null) return;
+        const nCosto = prompt("Nuevo costo ($):", costo);
+        if (nCosto === null) return;
+        const nPrecio = prompt("Nuevo precio venta ($):", precio);
+        if (nPrecio === null) return;
+
+        await _supabase.from('productos').update({ 
+            nombre: nNombre, 
+            costo: parseFloat(nCosto), 
+            precio_venta: parseFloat(nPrecio) 
+        }).eq('id', id);
         cargarInventario();
     }
 
-    async function editarP(id, nombre, precio) {
-        const n = prompt(`Nuevo precio para ${nombre}:`, precio);
-        if(n) { await _supabase.from('productos').update({ precio_venta: parseFloat(n) }).eq('id', id); cargarInventario(); }
+    async function modStock(id, actual, cambio) {
+        await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
+        cargarInventario();
     }
 
     async function agregarProducto() {
