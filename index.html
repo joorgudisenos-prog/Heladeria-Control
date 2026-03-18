@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v2.0 - Final</title>
+    <title>Cali Control v2.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -14,12 +14,8 @@
         .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
-        
-        /* Caja Layout */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
         .stat-card { padding: 20px; border-radius: 12px; color: white; text-align: center; }
-        
-        /* POS & Tablas */
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
@@ -27,7 +23,8 @@
         .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        .input-inline { border: 1px solid #ccc; padding: 5px; border-radius: 4px; width: 80px; }
+        .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -40,7 +37,6 @@
 </nav>
 
 <div class="container">
-    
     <div id="pos" class="section active">
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px;">
             <h2>Ventas</h2>
@@ -86,39 +82,24 @@
             <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="padding:8px; border-radius:8px; border:1px solid #ccc;">
         </div>
         <table id="tabla-hist">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="caja" class="section">
         <h2>Resumen de Caja</h2>
-        <p>Selecciona el mes para ver el balance:</p>
         <input type="month" id="filtro-caja" onchange="cargarCaja()" style="padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:20px;">
-        
         <div class="stats-grid">
-            <div class="stat-card" style="background:var(--primary)">
-                <h3>Ventas Totales ($)</h3>
-                <p id="caja-total-usd" style="font-size:1.8rem; font-weight:bold;">$0.00</p>
-            </div>
-            <div class="stat-card" style="background:var(--success)">
-                <h3>Ganancia Neta ($)</h3>
-                <p id="caja-ganancia" style="font-size:1.8rem; font-weight:bold;">$0.00</p>
-                <small>Venta menos Costo</small>
-            </div>
-            <div class="stat-card" style="background:var(--warning)">
-                <h3>Por Cobrar ($)</h3>
-                <p id="caja-pendientes" style="font-size:1.8rem; font-weight:bold;">$0.00</p>
-                <small>Pagos pendientes</small>
-            </div>
+            <div class="stat-card" style="background:var(--primary)"><h3>Ventas Totales ($)</h3><p id="caja-total-usd" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
+            <div class="stat-card" style="background:var(--success)"><h3>Ganancia Neta ($)</h3><p id="caja-ganancia" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
+            <div class="stat-card" style="background:var(--warning)"><h3>Por Cobrar ($)</h3><p id="caja-pendientes" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
         </div>
-        <div style="margin-top:30px; padding:15px; background:#f0f9ff; border-radius:10px;">
-            <h3>Total en Bolívares (Caja Chica)</h3>
-            <p id="caja-total-bs" style="font-size:2rem; color:var(--primary); font-weight:bold;">Bs 0.00</p>
-            <small>*Calculado según la tasa de cada venta.</small>
+        <div style="margin-top:30px; padding:20px; background:#f0f9ff; border-radius:10px; text-align:center;">
+            <h3>Caja en Bolívares</h3>
+            <p id="caja-total-bs" style="font-size:2.2rem; color:var(--primary); font-weight:bold;">Bs 0.00</p>
         </div>
     </div>
-
 </div>
 
 <script>
@@ -130,7 +111,6 @@
     let carrito = [];
     let productosLocal = [];
 
-    // INICIO
     window.onload = () => {
         const ahora = new Date();
         const mesActual = ahora.toISOString().substring(0, 7);
@@ -161,7 +141,6 @@
         if(id === 'caja') cargarCaja();
     }
 
-    // --- POS ---
     async function cargarPOS() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         productosLocal = data;
@@ -221,7 +200,6 @@
         dibujarCarrito();
     }
 
-    // --- INVENTARIO ---
     async function cargarInventario() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         const tbody = document.querySelector('#tabla-inv tbody');
@@ -229,9 +207,9 @@
             <tr>
                 <td><input type="text" class="input-inline" style="width:120px" value="${p.nombre}" id="edit-nom-${p.id}"></td>
                 <td>
-                    <button onclick="modStockBD(${p.id}, ${p.stock}, -1)">-</button>
-                    <b>${p.stock}</b>
-                    <button onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
+                    <button class="btn-stock" style="background:var(--danger)" onclick="modStockBD(${p.id}, ${p.stock}, -1)">-</button>
+                    <span style="font-weight:bold; margin:0 5px;">${p.stock}</span>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
                 <td><input type="number" step="0.01" class="input-inline" value="${p.costo}" id="edit-cos-${p.id}"></td>
                 <td><input type="number" step="0.01" class="input-inline" value="${p.precio_venta}" id="edit-pre-${p.id}"></td>
@@ -264,14 +242,10 @@
         document.querySelectorAll('#inventario input').forEach(i => i.value = '');
     }
 
-    // --- HISTORIAL FILTRADO ---
     async function cargarHistorial() {
-        const mesFiltro = document.getElementById('filtro-mes').value; // Formato YYYY-MM
+        const mesFiltro = document.getElementById('filtro-mes').value;
         const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
-        
-        // Filtrar localmente por mes
         const filtrados = data.filter(v => v.fecha.startsWith(mesFiltro));
-        
         const tbody = document.querySelector('#tabla-hist tbody');
         tbody.innerHTML = filtrados.map(v => `
             <tr>
@@ -280,9 +254,20 @@
                 <td>$${v.total_usd.toFixed(2)}</td>
                 <td>Bs ${v.total_bs.toFixed(2)}</td>
                 <td><span style="color:${v.estado === 'pendiente' ? 'red' : 'green'}; font-weight:bold;">${v.estado.toUpperCase()}</span></td>
-                <td>${v.estado === 'pendiente' ? `<button onclick="pagarV(${v.id})">Cobrar</button>` : '✅'}</td>
+                <td>
+                    ${v.estado === 'pendiente' ? `<button onclick="pagarV(${v.id})">Cobrar</button>` : '✅'}
+                    <button class="btn-del" onclick="eliminarVenta(${v.id})"> ✕ </button>
+                </td>
             </tr>
         `).join('');
+    }
+
+    async function eliminarVenta(id) {
+        if(confirm("¿Estás seguro de eliminar esta venta? Esto no se puede deshacer y afectará el balance.")) {
+            await _supabase.from('ventas').delete().eq('id', id);
+            cargarHistorial();
+            alert("Eliminado correctamente");
+        }
     }
 
     async function pagarV(id) {
@@ -290,13 +275,10 @@
         cargarHistorial();
     }
 
-    // --- CAJA Y SALDO ---
     async function cargarCaja() {
         const mesFiltro = document.getElementById('filtro-caja').value;
         const { data } = await _supabase.from('ventas').select('*');
-        
         const mesData = data.filter(v => v.fecha.startsWith(mesFiltro));
-        
         const totalUsd = mesData.reduce((acc, v) => acc + v.total_usd, 0);
         const totalBs = mesData.reduce((acc, v) => acc + v.total_bs, 0);
         const ganancia = mesData.reduce((acc, v) => acc + (v.ganancia_estimada || 0), 0);
