@@ -3,34 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v1.1</title>
+    <title>Cali Control v1.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; }
+        :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 30px; }
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 1000; }
-        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 500; }
-        nav button.active { background: var(--primary); box-shadow: 0 0 10px rgba(37,99,235,0.5); }
+        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 18px; border-radius: 8px; cursor: pointer; }
+        nav button.active { background: var(--primary); }
         .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
-        .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
         
-        /* Inventario */
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; }
-        input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; width: 90%; }
-        .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin: 0 2px; }
-        .btn-edit { background: #64748b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        
-        /* POS */
+        /* POS Mejorado */
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        .product-btn { background: white; border: 2px solid #e2e8f0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .product-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .cart-panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        
+        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; color: #166534; }
+        .product-btn:hover { border-color: #4ade80; transform: translateY(-2px); }
+        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
+        
+        .cart-panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; position: sticky; top: 80px; }
+        .cart-item { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; background: white; padding: 5px 8px; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        .badge { padding: 4px 8px; border-radius: 5px; font-size: 0.75rem; font-weight: bold; color: white; }
+        .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -54,11 +52,11 @@
             <div class="products-grid" id="pos-lista"></div>
             <div class="cart-panel">
                 <h3>Pedido</h3>
-                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:90%; margin-bottom:10px; padding:8px; border-radius:6px; border:1px solid #ccc;">
-                <div id="carrito-items" style="min-height:100px; border-bottom:1px solid #ddd; margin-bottom:10px;"></div>
-                <div style="margin:15px 0; font-weight:bold;">
-                    <span style="font-size:1.1rem;">Total USD: </span><span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
-                    <span style="font-size:1.3rem;">Total Bs: </span><span id="total-bs" style="color:var(--primary); font-size:1.5rem;">Bs 0.00</span>
+                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:90%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
+                <div id="carrito-items" style="min-height:100px; max-height: 300px; overflow-y: auto; border-bottom:1px solid #ddd; margin-bottom:10px;"></div>
+                <div style="margin:10px 0; font-weight:bold;">
+                    Total USD: <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
+                    Total Bs: <span id="total-bs" style="color:var(--primary); font-size:1.4rem;">Bs 0.00</span>
                 </div>
                 <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">CONFIRMAR PAGO</button>
                 <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">DEJAR PENDIENTE</button>
@@ -68,13 +66,13 @@
     </div>
 
     <div id="inventario" class="section">
-        <h2>Inventario Helados Cali</h2>
-        <div class="form-grid">
+        <h2>Inventario</h2>
+        <div style="background:#f8fafc; padding:15px; border-radius:10px; margin-bottom:20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
             <input type="text" id="inv-nombre" placeholder="Nombre">
             <input type="number" id="inv-stock" placeholder="Stock">
             <input type="number" step="0.01" id="inv-costo" placeholder="Costo $">
             <input type="number" step="0.01" id="inv-precio" placeholder="Venta $">
-            <button onclick="agregarProducto()" style="background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; padding:10px; font-weight:bold;">+ Crear</button>
+            <button onclick="agregarProducto()" style="background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">+ Guardar</button>
         </div>
         <table id="tabla-inv">
             <thead><tr><th>Producto</th><th>Stock</th><th>Costo</th><th>Venta</th><th>Acciones</th></tr></thead>
@@ -85,7 +83,7 @@
     <div id="historial" class="section">
         <h2>Historial de Ventas</h2>
         <table id="tabla-hist">
-            <thead><tr><th>Fecha</th><th>Cliente / Detalle</th><th>Monto $</th><th>Monto Bs</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Monto $</th><th>Monto Bs</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -99,79 +97,62 @@
     const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let carrito = [];
+    let productosLocal = []; // Copia para manejar el stock visualmente
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         document.getElementById('btn-' + id).classList.add('active');
-        if(id === 'inventario') cargarInventario();
         if(id === 'pos') cargarPOS();
+        if(id === 'inventario') cargarInventario();
         if(id === 'historial') cargarHistorial();
     }
 
-    // --- INVENTARIO ---
-    async function cargarInventario() {
+    // --- POS LÓGICA ---
+    async function cargarPOS() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
-        const tbody = document.querySelector('#tabla-inv tbody');
-        tbody.innerHTML = data.map(p => `
-            <tr>
-                <td><strong>${p.nombre}</strong></td>
-                <td>
-                    <button class="btn-stock" style="background:var(--danger)" onclick="modificarStock(${p.id}, ${p.stock}, -1)">-</button>
-                    <span style="font-weight:bold; margin:0 5px;">${p.stock}</span>
-                    <button class="btn-stock" style="background:var(--success)" onclick="modificarStock(${p.id}, ${p.stock}, 1)">+</button>
-                </td>
-                <td>$${p.costo}</td>
-                <td>$${p.precio_venta}</td>
-                <td>
-                    <button class="btn-edit" onclick="editarProducto(${p.id}, '${p.nombre}', ${p.costo}, ${p.precio_venta})">Editar</button>
-                </td>
-            </tr>
-        `).join('');
+        productosLocal = data;
+        renderizarBotonesPOS();
     }
 
-    async function modificarStock(id, actual, cambio) {
-        const nuevo = actual + cambio;
-        if(nuevo < 0) return;
-        await _supabase.from('productos').update({ stock: nuevo }).eq('id', id);
-        cargarInventario();
+    function renderizarBotonesPOS() {
+        const lista = document.getElementById('pos-lista');
+        lista.innerHTML = productosLocal.map(p => {
+            const agotado = p.stock <= 0;
+            return `
+                <div class="product-btn ${agotado ? 'agotado' : ''}" 
+                     onclick="${agotado ? '' : `agregarAlCarrito(${p.id})`}">
+                    <strong>${p.nombre}</strong><br>
+                    <span>$${p.precio_venta}</span><br>
+                    <small>${agotado ? 'AGOTADO' : `${p.stock} disponibles`}</small>
+                </div>
+            `;
+        }).join('');
     }
 
-    async function editarProducto(id, nombre, costo, precio) {
-        const nPrecio = prompt(`Nuevo precio de venta para ${nombre}:`, precio);
-        if (nPrecio !== null) {
-            await _supabase.from('productos').update({ precio_venta: parseFloat(nPrecio) }).eq('id', id);
-            cargarInventario();
+    function agregarAlCarrito(id) {
+        const index = productosLocal.findIndex(p => p.id === id);
+        if (productosLocal[index].stock > 0) {
+            productosLocal[index].stock -= 1; // Descontar del botón
+            carrito.push({...productosLocal[index]}); // Meter al carrito
+            renderizarBotonesPOS();
+            dibujarCarrito();
         }
     }
 
-    async function agregarProducto() {
-        const nombre = document.getElementById('inv-nombre').value;
-        const stock = parseInt(document.getElementById('inv-stock').value);
-        const costo = parseFloat(document.getElementById('inv-costo').value) || 0;
-        const precio = parseFloat(document.getElementById('inv-precio').value) || 0;
-        if(!nombre) return alert("Escribe un nombre");
-        await _supabase.from('productos').upsert({ nombre, stock, costo, precio_venta: precio }, { onConflict: 'nombre' });
-        cargarInventario();
-        document.querySelectorAll('#inventario input').forEach(i => i.value = '');
+    function quitarDelCarrito(i, idOriginal) {
+        const indexProd = productosLocal.findIndex(p => p.id === idOriginal);
+        productosLocal[indexProd].stock += 1; // Devolver al botón
+        carrito.splice(i, 1);
+        renderizarBotonesPOS();
+        dibujarCarrito();
     }
 
-    // --- POS ---
-    async function cargarPOS() {
-        const { data } = await _supabase.from('productos').select('*').gt('stock', 0).order('nombre');
-        const lista = document.getElementById('pos-lista');
-        lista.innerHTML = data.map(p => `
-            <div class="product-btn" onclick='meterAlCarrito(${JSON.stringify(p)})'>
-                <strong>${p.nombre}</strong><br>
-                <span style="color:var(--success)">$${p.precio_venta}</span><br>
-                <small style="color:gray">${p.stock} disp.</small>
-            </div>
-        `).join('');
-    }
-
-    function meterAlCarrito(p) {
-        carrito.push(p);
+    function limpiarCarrito() {
+        // Al limpiar, devolvemos todo al stock local
+        cargarPOS(); 
+        carrito = [];
         dibujarCarrito();
     }
 
@@ -181,17 +162,14 @@
         let total = 0;
         div.innerHTML = carrito.map((item, i) => {
             total += item.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:3px;">
+            return `<div class="cart-item">
                 <span>${item.nombre}</span>
-                <span>$${item.precio_venta} <button onclick="quitar(${i})" style="border:none; color:red; background:none; cursor:pointer;">x</button></span>
+                <span>$${item.precio_venta} <button onclick="quitarDelCarrito(${i}, ${item.id})" style="color:red; border:none; background:none; cursor:pointer;">x</button></span>
             </div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
     }
-
-    function quitar(i) { carrito.splice(i, 1); dibujarCarrito(); }
-    function limpiarCarrito() { carrito = []; dibujarCarrito(); }
 
     async function finalizarVenta(estado) {
         if(carrito.length === 0) return;
@@ -200,44 +178,83 @@
         const cliente = document.getElementById('cliente-nombre').value || 'Cliente Gral';
         const detalle = carrito.map(c => c.nombre).join(', ');
 
+        // Guardar venta
         await _supabase.from('ventas').insert({
-            cliente_nombre: cliente,
-            productos_detalle: detalle,
-            total_usd: total,
-            tasa_momento: tasa,
-            total_bs: total * tasa,
-            estado: estado
+            cliente_nombre: cliente, productos_detalle: detalle,
+            total_usd: total, tasa_momento: tasa, total_bs: total * tasa, estado: estado
         });
 
-        for (const p of carrito) {
-            await _supabase.rpc('increment_stock', { row_id: p.id, x: -1 });
+        // Actualizar stock real en BD (solo de lo vendido)
+        // Agrupamos por ID para hacer menos llamadas
+        const conteo = {};
+        carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
+        
+        for (const id in conteo) {
+            await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] });
         }
 
         carrito = [];
         document.getElementById('cliente-nombre').value = '';
+        alert("¡Listo!");
+        cargarPOS(); // Recargar para asegurar stock real
         dibujarCarrito();
-        cargarPOS();
-        alert(estado === 'pagado' ? "¡Venta completada!" : "Registrado como Deuda");
     }
 
-    // --- HISTORIAL ---
+    // --- INVENTARIO Y OTROS (Sin cambios mayores) ---
+    async function cargarInventario() {
+        const { data } = await _supabase.from('productos').select('*').order('nombre');
+        const tbody = document.querySelector('#tabla-inv tbody');
+        tbody.innerHTML = data.map(p => `
+            <tr>
+                <td><strong>${p.nombre}</strong></td>
+                <td>
+                    <button class="btn-stock" style="background:var(--danger)" onclick="modificarStockBD(${p.id}, ${p.stock}, -1)">-</button>
+                    <span style="font-weight:bold; margin:0 5px;">${p.stock}</span>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modificarStockBD(${p.id}, ${p.stock}, 1)">+</button>
+                </td>
+                <td>$${p.costo}</td><td>$${p.precio_venta}</td>
+                <td><button onclick="editarP(${p.id}, '${p.nombre}', ${p.precio_venta})" style="cursor:pointer;">Editar</button></td>
+            </tr>
+        `).join('');
+    }
+
+    async function modificarStockBD(id, actual, cambio) {
+        await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
+        cargarInventario();
+    }
+
+    async function editarP(id, nombre, precio) {
+        const n = prompt(`Nuevo precio para ${nombre}:`, precio);
+        if(n) { await _supabase.from('productos').update({ precio_venta: parseFloat(n) }).eq('id', id); cargarInventario(); }
+    }
+
+    async function agregarProducto() {
+        const nombre = document.getElementById('inv-nombre').value;
+        const stock = parseInt(document.getElementById('inv-stock').value) || 0;
+        const costo = parseFloat(document.getElementById('inv-costo').value) || 0;
+        const precio = parseFloat(document.getElementById('inv-precio').value) || 0;
+        await _supabase.from('productos').upsert({ nombre, stock, costo, precio_venta: precio }, { onConflict: 'nombre' });
+        cargarInventario();
+        document.querySelectorAll('#inventario input').forEach(i => i.value = '');
+    }
+
     async function cargarHistorial() {
         const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
         const tbody = document.querySelector('#tabla-hist tbody');
         tbody.innerHTML = data.map(v => `
             <tr>
-                <td style="font-size:0.8rem;">${new Date(v.fecha).toLocaleDateString()}<br>${new Date(v.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                <td><strong>${v.cliente_nombre}</strong><br><small style="color:gray">${v.productos_detalle}</small></td>
+                <td style="font-size:0.8rem;">${new Date(v.fecha).toLocaleDateString()}</td>
+                <td><strong>${v.cliente_nombre}</strong></td>
                 <td>$${v.total_usd}</td>
-                <td style="color:var(--primary); font-weight:bold;">Bs ${v.total_bs.toFixed(2)}</td>
-                <td><span class="badge" style="background:${v.estado === 'pendiente' ? 'var(--danger)' : 'var(--success)'}">${v.estado.toUpperCase()}</span></td>
-                <td>${v.estado === 'pendiente' ? `<button onclick="pagar(${v.id})" style="padding:5px; border-radius:5px; cursor:pointer;">Cobrar</button>` : '✅'}</td>
+                <td>Bs ${v.total_bs.toFixed(2)}</td>
+                <td><span style="color:${v.estado === 'pendiente' ? 'red' : 'green'}; font-weight:bold;">${v.estado.toUpperCase()}</span></td>
+                <td>${v.estado === 'pendiente' ? `<button onclick="pagarV(${v.id})">Cobrar</button>` : '✅'}</td>
             </tr>
         `).join('');
     }
 
-    async function pagar(id) {
-        await _supabase.from('ventas').update({ estado: 'pagado' }).eq(id, id);
+    async function pagarV(id) {
+        await _supabase.from('ventas').update({ estado: 'pagado' }).eq('id', id);
         cargarHistorial();
     }
 
