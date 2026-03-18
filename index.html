@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v2.1</title>
+    <title>Cali Control v2.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -14,17 +14,15 @@
         .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
-        .stat-card { padding: 20px; border-radius: 12px; color: white; text-align: center; }
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; }
-        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; }
+        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; transition: 0.2s; }
+        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
         .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
-        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; padding: 5px; }
     </style>
 </head>
 <body>
@@ -39,7 +37,7 @@
 <div class="container">
     <div id="pos" class="section active">
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px;">
-            <h2>Ventas</h2>
+            <h2>Punto de Venta</h2>
             <div style="background:#e0f2fe; padding:10px; border-radius:8px;">
                 Tasa BCV: <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
             </div>
@@ -144,6 +142,10 @@
     async function cargarPOS() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         productosLocal = data;
+        renderizarBotonesPOS();
+    }
+
+    function renderizarBotonesPOS() {
         const lista = document.getElementById('pos-lista');
         lista.innerHTML = productosLocal.map(p => {
             const agotado = p.stock <= 0;
@@ -155,10 +157,11 @@
 
     function agregarAlCarrito(id) {
         const i = productosLocal.findIndex(p => p.id === id);
+        // VALIDACIÓN CRÍTICA: No permitir si no hay stock
         if (productosLocal[i].stock > 0) {
-            productosLocal[i].stock--;
-            carrito.push({...productosLocal[i]});
-            cargarPOS(); 
+            productosLocal[i].stock--; // Restar localmente
+            carrito.push({...productosLocal[i]}); // Agregar copia al carrito
+            renderizarBotonesPOS(); // Refrescar visualmente los botones
             dibujarCarrito();
         }
     }
@@ -167,12 +170,23 @@
         const div = document.getElementById('carrito-items');
         const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
         let total = 0;
-        div.innerHTML = carrito.map(item => {
+        div.innerHTML = carrito.map((item, i) => {
             total += item.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${item.nombre}</span><span>$${item.precio_venta}</span></div>`;
+            return `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                <span>${item.nombre}</span>
+                <span>$${item.precio_venta} <button onclick="quitarDelCarrito(${i}, ${item.id})" style="color:red; border:none; background:none; cursor:pointer;">x</button></span>
+            </div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
+    }
+
+    function quitarDelCarrito(index, idOriginal) {
+        const iP = productosLocal.findIndex(p => p.id === idOriginal);
+        productosLocal[iP].stock++; // Devolver stock local
+        carrito.splice(index, 1);
+        renderizarBotonesPOS();
+        dibujarCarrito();
     }
 
     async function finalizarVenta(estado) {
@@ -195,7 +209,7 @@
 
         carrito = [];
         document.getElementById('cliente-nombre').value = '';
-        alert("¡Venta Guardada!");
+        alert("¡Venta Exitosa!");
         cargarPOS();
         dibujarCarrito();
     }
@@ -263,10 +277,9 @@
     }
 
     async function eliminarVenta(id) {
-        if(confirm("¿Estás seguro de eliminar esta venta? Esto no se puede deshacer y afectará el balance.")) {
+        if(confirm("¿Seguro que deseas eliminar esta venta?")) {
             await _supabase.from('ventas').delete().eq('id', id);
             cargarHistorial();
-            alert("Eliminado correctamente");
         }
     }
 
@@ -292,7 +305,7 @@
 
     function limpiarCarrito() {
         carrito = [];
-        cargarPOS();
+        cargarPOS(); // Esto reinicia el stock local a los valores de BD
         dibujarCarrito();
     }
 </script>
