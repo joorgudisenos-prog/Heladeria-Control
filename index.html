@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v2.4</title>
+    <title>Cali Control v2.5</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -190,8 +190,8 @@
         const cliente = document.getElementById('cliente-nombre').value || 'Cliente Gral';
         const detalle = carrito.map(c => c.nombre).join(', ');
 
-        // Guardar Venta
-        await _supabase.from('ventas').insert([{
+        // 1. Guardar en Supabase
+        const { error } = await _supabase.from('ventas').insert({
             cliente_nombre: cliente, 
             productos_detalle: detalle,
             total_usd: totalUsd, 
@@ -199,16 +199,24 @@
             total_bs: totalUsd * tasa, 
             estado: estado, 
             ganancia_estimada: totalUsd - totalCosto
-        }]);
+        });
 
-        // Actualizar Stock en BD
+        if (error) {
+            alert("Error al guardar la venta: " + error.message);
+            return;
+        }
+
+        // 2. Descontar Stock real
         const conteo = {};
         carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
         for (const id in conteo) { 
             await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] }); 
         }
 
-        // Limpiar y Refrescar
+        // 3. Pequeña espera para que la base de datos se asiente
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 4. Limpiar y refrescar todo
         carrito = [];
         document.getElementById('cliente-nombre').value = '';
         await cargarPOS();
@@ -273,6 +281,7 @@
     async function eliminarVenta(id) {
         if(confirm("¿Seguro que deseas eliminar esta venta?")) {
             await _supabase.from('ventas').delete().eq('id', id);
+            await new Promise(resolve => setTimeout(resolve, 300));
             await cargarHistorial();
             await cargarCaja();
         }
@@ -280,6 +289,7 @@
 
     async function pagarV(id) {
         await _supabase.from('ventas').update({ estado: 'pagado' }).eq('id', id);
+        await new Promise(resolve => setTimeout(resolve, 300));
         await cargarHistorial();
         await cargarCaja();
     }
