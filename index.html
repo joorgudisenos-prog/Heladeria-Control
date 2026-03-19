@@ -122,18 +122,37 @@
         dibujarCarrito();
     }
 
-    async function actualizarTasaAutomatica() {
-        const input = document.getElementById('tasa-val');
-        try {
-            const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
-            const data = await res.json();
-            const precio = data.monitors.usd.price;
-            if(precio) {
-                input.value = precio;
-                await guardarTasaBD(precio);
-            }
-        } catch(e) { console.log("Error BCV"); }
+async function actualizarTasaAutomatica() {
+    const input = document.getElementById('tasa-val');
+    const originalValue = input.value;
+    input.value = "..."; // Indicador visual de que está buscando
+
+    try {
+        // Intento 1: API de PyDolar
+        let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
+        let data = await res.json();
+        let precio = data.monitors.usd.price;
+
+        if (!precio) {
+            // Intento 2: API alternativa si la primera falla
+            res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+            data = await res.json();
+            precio = data.promedio;
+        }
+
+        if (precio) {
+            input.value = precio;
+            await guardarTasaBD(precio);
+            console.log("Tasa actualizada con éxito: " + precio);
+        } else {
+            throw new Error("No se obtuvo precio");
+        }
+    } catch (e) {
+        console.error("Error al obtener tasa:", e);
+        input.value = originalValue;
+        alert("No se pudo obtener la tasa del BCV automáticamente. Por favor, ingrésala a mano.");
     }
+}
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
