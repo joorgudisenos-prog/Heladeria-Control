@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v2.8 - Oficial</title>
+    <title>Cali Control v2.9 - Estable</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -42,7 +42,7 @@
             <div style="background:#e0f2fe; padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px;">
                 Tasa BCV: 
                 <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:75px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
-                <button onclick="actualizarTasaAutomatica()" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="Actualizar desde BCV">🔄</button>
+                <button onclick="actualizarTasaAutomatica()" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="Actualizar Tasa">🔄</button>
             </div>
         </div>
         <div class="pos-layout">
@@ -108,13 +108,15 @@
         document.getElementById('filtro-caja').value = mesActual;
         
         await cargarTasaBD();
-        actualizarTasaAutomatica(); // Intenta actualizar desde el BCV al abrir
+        actualizarTasaAutomatica(); 
         cargarPOS();
     };
 
     async function cargarTasaBD() {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
+        try {
+            const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+            if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
+        } catch(e) {}
     }
 
     async function guardarTasaBD(valor) {
@@ -122,37 +124,32 @@
         dibujarCarrito();
     }
 
-async function actualizarTasaAutomatica() {
-    const input = document.getElementById('tasa-val');
-    const originalValue = input.value;
-    input.value = "..."; // Indicador visual de que está buscando
+    async function actualizarTasaAutomatica() {
+        const input = document.getElementById('tasa-val');
+        const originalValue = input.value;
+        input.value = "...";
+        try {
+            // Intento 1
+            let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
+            let data = await res.json();
+            let precio = data.monitors.usd.price;
 
-    try {
-        // Intento 1: API de PyDolar
-        let res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
-        let data = await res.json();
-        let precio = data.monitors.usd.price;
+            if (!precio) {
+                // Intento 2 (Fallback)
+                res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+                data = await res.json();
+                precio = data.promedio;
+            }
 
-        if (!precio) {
-            // Intento 2: API alternativa si la primera falla
-            res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
-            data = await res.json();
-            precio = data.promedio;
+            if (precio) {
+                input.value = precio;
+                await guardarTasaBD(precio);
+            } else { throw new Error(); }
+        } catch (e) {
+            input.value = originalValue;
+            console.log("Error al obtener tasa");
         }
-
-        if (precio) {
-            input.value = precio;
-            await guardarTasaBD(precio);
-            console.log("Tasa actualizada con éxito: " + precio);
-        } else {
-            throw new Error("No se obtuvo precio");
-        }
-    } catch (e) {
-        console.error("Error al obtener tasa:", e);
-        input.value = originalValue;
-        alert("No se pudo obtener la tasa del BCV automáticamente. Por favor, ingrésala a mano.");
     }
-}
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -221,7 +218,6 @@ async function actualizarTasaAutomatica() {
         const cliente = document.getElementById('cliente-nombre').value || 'Cliente Gral';
         const detalle = carrito.map(c => c.nombre).join(', ');
 
-        // Guardar sin columna de ganancia para evitar errores
         const { error } = await _supabase.from('ventas').insert({
             cliente_nombre: cliente, productos_detalle: detalle,
             total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
@@ -229,12 +225,10 @@ async function actualizarTasaAutomatica() {
 
         if (error) { alert("Error: " + error.message); return; }
 
-        // Actualizar Stock
         const conteo = {};
         carrito.forEach(x => { conteo[x.id] = (conteo[x.id] || 0) + 1; });
         for (const id in conteo) { await _supabase.rpc('increment_stock', { row_id: id, x: -conteo[id] }); }
 
-        // Espera de sincronización
         await new Promise(r => setTimeout(r, 600));
 
         carrito = [];
@@ -254,14 +248,21 @@ async function actualizarTasaAutomatica() {
                 <td><input type="text" style="width:100px" value="${p.nombre}" id="edit-nom-${p.id}"></td>
                 <td>
                     <button class="btn-stock" style="background:var(--danger)" onclick="modStockBD(${p.id}, ${p.stock}, -1)">-</button>
-                    <span>${p.stock}</span>
+                    <span style="margin:0 5px">${p.stock}</span>
                     <button class="btn-stock" style="background:var(--success)" onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
                 <td>$${p.costo}</td>
                 <td>$${p.precio_venta}</td>
-                <td><button onclick="guardarFila(${p.id})" style="background:var(--success); color:white; border:none; border-radius:4px; cursor:pointer;">✓</button></td>
+                <td><button onclick="guardarFila(${p.id})" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">✓</button></td>
             </tr>
         `).join('');
+    }
+
+    async function guardarFila(id) {
+        const n = document.getElementById(`edit-nom-${id}`).value;
+        await _supabase.from('productos').update({ nombre: n }).eq('id', id);
+        alert("Actualizado");
+        cargarInventario();
     }
 
     async function modStockBD(id, actual, cambio) {
@@ -287,7 +288,7 @@ async function actualizarTasaAutomatica() {
     }
 
     async function eliminarVenta(id) {
-        if(confirm("¿Eliminar?")) {
+        if(confirm("¿Eliminar registro?")) {
             await _supabase.from('ventas').delete().eq('id', id);
             await new Promise(r => setTimeout(r, 400));
             cargarHistorial();
