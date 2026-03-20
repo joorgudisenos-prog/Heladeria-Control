@@ -3,57 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.0 - Diseño Maqueta</title>
+    <title>Cali Control v4.1 - Fix Uniformidad</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
             --primary: #2563eb; 
-            --success: #3ab568; /* Color verde maqueta */
-            --danger: #ef4e57;  /* Color rojo maqueta */
+            --success: #3ab568; 
+            --danger: #ef4e57;  
             --warning: #f59e0b; 
             --dark: #1e293b; 
-            --text-dark: #1f5e3d; /* Texto oscuro sobre verde */
-            --text-danger-dark: #81292e; /* Texto oscuro sobre rojo */
+            --text-dark: #1f5e3d; 
+            --text-danger-dark: #81292e; 
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
-        
-        /* Navegación */
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
         nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; white-space: nowrap; font-size: 0.9rem; }
         nav button.active { background: var(--primary); font-weight: bold; }
-        
-        /* Contenedor Principal */
         .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
-        
-        /* Layout POS */
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         @media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } }
         
         /* Cuadrícula de Botones */
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; align-content: start; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; align-content: start; }
         
-        /* --- ESTILO BOTÓN MAQUETA --- */
+        /* --- ESTILO BOTÓN UNIFORME --- */
         .product-btn { 
             background-color: var(--success); 
             border: none;
-            border-radius: 25px; /* Bordes redondeados */
-            padding: 20px;
-            display: grid;
-            grid-template-rows: 1fr auto;
-            gap: 10px;
+            border-radius: 20px; 
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Fuerza disp y precio abajo */
             cursor: pointer;
             transition: transform 0.1s, box-shadow 0.2s;
-            aspect-ratio: 2 / 1; /* Proporción similar a la maqueta */
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            
+            /* --- CORRECCIÓN DE UNIFORMIDAD --- */
+            aspect-ratio: 2.1 / 1; /* Forzamos una forma de rectángulo uniforme */
+            box-sizing: border-box;
+            overflow: hidden; /* Previene que el texto se salga */
         }
         .product-btn:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         .product-btn:active { transform: scale(0.97); }
         
         /* Texto superior (Nombre del Helado) */
         .product-btn .name-area {
-            font-size: 1.3rem; 
+            font-size: 1.15rem; /* Fuente base */
             font-weight: 800; 
             text-transform: uppercase; 
             color: var(--text-dark);
@@ -61,20 +59,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1.2;
-            word-wrap: break-word; /* Para nombres largos */
+            flex-grow: 1; /* Ocupa el espacio superior */
+            line-height: 1.1;
+            
+            /* --- AJUSTE PARA NOMBRES LARGOS --- */
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* Máximo 2 líneas de texto */
+            -webkit-box-orient: vertical;
         }
         
         /* Área inferior (Disp. y Precio) */
         .product-btn .info-area {
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
-            color: white; /* Texto blanco maqueta */
+            align-items: center;
+            color: white; 
             font-weight: 700;
+            padding-top: 5px;
         }
-        .product-btn .disp-text { font-size: 1rem; }
-        .product-btn .price-text { font-size: 1.3rem; }
+        .product-btn .disp-text { font-size: 0.95rem; }
+        .product-btn .price-text { font-size: 1.25rem; }
         
         /* --- ESTILO BOTÓN AGOTADO --- */
         .product-btn.agotado { 
@@ -317,7 +322,7 @@
                 <td style="display:flex; align-items:center;">
                     <button class="btn-stock btn-minus" onclick="modStockBD(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 10px; font-size:1.1rem; width: 30px; text-align: center;">${p.stock}</span>
-                    <button class="btn-stock btn-plus" onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
                 <td><input type="number" step="0.01" class="inline-input" style="width: 90px;" value="${p.precio_venta.toFixed(2)}" id="edit-pre-${p.id}"></td>
                 <td><button class="btn-save" onclick="guardarFila(${p.id})">✓</button></td>
