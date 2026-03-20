@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.0 - Helados Cali</title>
+    <title>Cali Control v4.1 - Helados Cali</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -49,6 +49,7 @@
         .btn-del { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .btn-pagar { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-right: 5px; }
         .btn-editar { background: var(--warning); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; margin-left: 5px; }
+        .btn-agregar { background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 15px; font-size: 1rem; }
         .card-stats { background: linear-gradient(135deg, var(--primary), #1e40af); color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid var(--primary); }
@@ -56,7 +57,51 @@
         .stat-card .value { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
         .badge-pendiente { background: var(--warning); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
         .badge-pagado { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
-        input, .editable-input { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; width: 80px; text-align: center; }
+        input, .editable-input { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100px; text-align: center; }
+        .nombre-input { width: 120px; text-align: left; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 450px;
+        }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-confirmar { background: var(--success); color: white; }
+        .btn-cancelar { background: #94a3b8; color: white; }
+        .acciones-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     </style>
 </head>
 <body>
@@ -102,10 +147,13 @@
     </div>
 
     <div id="inventario" class="section">
-        <h2>📦 Gestión de Inventario</h2>
+        <div class="acciones-header">
+            <h2>📦 Gestión de Inventario</h2>
+            <button class="btn-agregar" onclick="abrirModalAgregar()">➕ AÑADIR NUEVO HELADO</button>
+        </div>
         <table id="tabla-inv">
             <thead>
-                <tr><th>Producto</th><th>Stock</th><th>Costo (Bs)</th><th>Precio Venta ($)</th><th>Acciones</th></tr>
+                <tr><th>Producto</th><th>Stock</th><th>Costo (Bs)</th><th>Precio Venta ($)</th><th>Acciones</th>\\
             </thead>
             <tbody></tbody>
         </table>
@@ -127,41 +175,34 @@
         <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:20px; padding:10px; border-radius:8px; border:1px solid #ccc;">
         
         <div class="stats-grid">
-            <div class="stat-card">
-                <h4>💰 Total Vendido en Dólares</h4>
-                <div class="value" id="caja-total-usd">$0.00</div>
-                <small>Suma de todas las ventas en USD</small>
-            </div>
-            <div class="stat-card">
-                <h4>💵 Total Vendido en Bolívares</h4>
-                <div class="value" id="caja-total-bs">Bs 0.00</div>
-                <small>Suma histórica con tasa de cada venta</small>
-            </div>
-            <div class="stat-card">
-                <h4>📈 Total Ganancia (Bs)</h4>
-                <div class="value" id="caja-ganancia-bs">Bs 0.00</div>
-                <small>Ventas - Costo de los productos</small>
-            </div>
-            <div class="stat-card">
-                <h4>💲 Ganancia en Dólares (tasa actual)</h4>
-                <div class="value" id="caja-ganancia-usd">$0.00</div>
-                <small>Convertido a tasa actual: <span id="tasa-actual-ganancia">0</span> Bs/$</small>
-            </div>
+            <div class="stat-card"><h4>💰 Total Vendido en Dólares</h4><div class="value" id="caja-total-usd">$0.00</div><small>Suma de todas las ventas en USD</small></div>
+            <div class="stat-card"><h4>💵 Total Vendido en Bolívares</h4><div class="value" id="caja-total-bs">Bs 0.00</div><small>Suma histórica con tasa de cada venta</small></div>
+            <div class="stat-card"><h4>📈 Total Ganancia (Bs)</h4><div class="value" id="caja-ganancia-bs">Bs 0.00</div><small>Ventas - Costo de los productos</small></div>
+            <div class="stat-card"><h4>💲 Ganancia en Dólares (tasa actual)</h4><div class="value" id="caja-ganancia-usd">$0.00</div><small>Convertido a tasa actual: <span id="tasa-actual-ganancia">0</span> Bs/$</small></div>
         </div>
         
         <div class="card-stats">
             <h3>⏳ Pagos Pendientes</h3>
             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                <div>
-                    <strong>Total Pendiente en USD:</strong><br>
-                    <span style="font-size: 1.5rem;" id="pendiente-usd">$0.00</span>
-                </div>
-                <div>
-                    <strong>Equivalente en Bs (tasa actual):</strong><br>
-                    <span style="font-size: 1.5rem;" id="pendiente-bs-equivalente">Bs 0.00</span>
-                </div>
+                <div><strong>Total Pendiente en USD:</strong><br><span style="font-size: 1.5rem;" id="pendiente-usd">$0.00</span></div>
+                <div><strong>Equivalente en Bs (tasa actual):</strong><br><span style="font-size: 1.5rem;" id="pendiente-bs-equivalente">Bs 0.00</span></div>
             </div>
             <small style="display: block; margin-top: 10px;">⚠️ Los pagos pendientes se confirman desde la sección Historial</small>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar nuevo helado -->
+<div id="modal-agregar" class="modal">
+    <div class="modal-content">
+        <h3>🍨 Añadir Nuevo Helado</h3>
+        <input type="text" id="nuevo-nombre" placeholder="Nombre del helado">
+        <input type="number" id="nuevo-stock" placeholder="Stock inicial" value="0">
+        <input type="number" id="nuevo-costo" placeholder="Costo (Bs)" step="0.01" value="0">
+        <input type="number" id="nuevo-precio" placeholder="Precio venta ($)" step="0.01" value="0">
+        <div class="modal-buttons">
+            <button class="btn-confirmar" onclick="agregarHelado()">✅ Agregar</button>
+            <button class="btn-cancelar" onclick="cerrarModal()">❌ Cancelar</button>
         </div>
     </div>
 </div>
@@ -265,21 +306,14 @@
             total += subtotal;
             return `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:5px; background:white; border-radius:6px;">
-                    <div>
-                        <strong>${item.nombre}</strong><br>
-                        <small>$${item.precio_venta.toFixed(2)} x ${item.cantidad || 1}</small>
-                    </div>
-                    <div>
-                        <span style="color:var(--success); font-weight:bold;">$${subtotal.toFixed(2)}</span>
-                        <button onclick="eliminarDelCarrito(${i})" style="margin-left:8px; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer; width:24px; height:24px;">✕</button>
-                    </div>
+                    <div><strong>${item.nombre}</strong><br><small>$${item.precio_venta.toFixed(2)} x ${item.cantidad || 1}</small></div>
+                    <div><span style="color:var(--success); font-weight:bold;">$${subtotal.toFixed(2)}</span>
+                    <button onclick="eliminarDelCarrito(${i})" style="margin-left:8px; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer; width:24px; height:24px;">✕</button></div>
                 </div>
             `;
         }).join('');
         
-        if (carrito.length === 0) {
-            document.getElementById('carrito-items').innerHTML = '<div style="color:#94a3b8; text-align:center;">No hay productos en el carrito</div>';
-        }
+        if (carrito.length === 0) document.getElementById('carrito-items').innerHTML = '<div style="color:#94a3b8; text-align:center;">No hay productos en el carrito</div>';
         
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
@@ -288,63 +322,40 @@
     function eliminarDelCarrito(index) {
         const item = carrito[index];
         const productoOriginal = productosLocal.find(p => p.id === item.id);
-        if (productoOriginal) {
-            productoOriginal.stock += (item.cantidad || 1);
-        }
+        if (productoOriginal) productoOriginal.stock += (item.cantidad || 1);
         carrito.splice(index, 1);
         renderPOS();
         dibujarCarrito();
     }
 
     async function finalizarVenta(estado) {
-        if(carrito.length === 0) {
-            alert("No hay productos en el carrito");
-            return;
-        }
-        
+        if(carrito.length === 0) { alert("No hay productos en el carrito"); return; }
         const totalUsd = carrito.reduce((acc, i) => acc + (i.precio_venta * (i.cantidad || 1)), 0);
         const tasa = parseFloat(document.getElementById('tasa-val').value);
         const nombreCliente = document.getElementById('cliente-nombre').value.trim() || 'Cliente General';
-        
         const productosDetalle = carrito.map(i => `${i.nombre} x${i.cantidad || 1}`).join(', ');
         
         const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: nombreCliente,
-            productos_detalle: productosDetalle,
-            total_usd: totalUsd,
-            tasa_momento: tasa,
-            total_bs: totalUsd * tasa,
-            estado: estado,
-            fecha: new Date().toISOString()
+            cliente_nombre: nombreCliente, productos_detalle: productosDetalle,
+            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
         });
 
-        if(error) { 
-            alert("Error al guardar: " + error.message); 
-            return; 
-        }
+        if(error) { alert("Error al guardar: " + error.message); return; }
 
-        // Actualizar stock en base de datos
         for (const item of carrito) {
             const productoActual = productosLocal.find(p => p.id === item.id);
-            const nuevoStock = productoActual.stock;
-            await _supabase.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
+            await _supabase.from('productos').update({ stock: productoActual.stock }).eq('id', item.id);
         }
 
-        alert(`Venta ${estado === 'pagado' ? 'completada' : 'registrada como pendiente'} exitosamente`);
+        alert(`Venta ${estado === 'pagado' ? 'completada' : 'registrada como pendiente'}`);
         limpiarCarrito();
-        
-        if (estado === 'pagado') {
-            await cargarCaja();
-        }
+        if (estado === 'pagado') await cargarCaja();
     }
 
     function limpiarCarrito() {
-        // Devolver el stock antes de limpiar
         for (const item of carrito) {
             const productoOriginal = productosLocal.find(p => p.id === item.id);
-            if (productoOriginal) {
-                productoOriginal.stock += (item.cantidad || 1);
-            }
+            if (productoOriginal) productoOriginal.stock += (item.cantidad || 1);
         }
         carrito = [];
         document.getElementById('cliente-nombre').value = '';
@@ -356,23 +367,53 @@
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
             <tr>
-                <td><strong>${p.nombre}</strong></td>
+                <td><input type="text" id="nombre-${p.id}" value="${p.nombre}" class="nombre-input" style="width:140px;" onchange="actualizarNombre(${p.id}, this.value)"></td>
                 <td>
                     <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
                     <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
-                <td>
-                    <input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;">
-                </td>
-                <td>
-                    <input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;">
-                </td>
+                <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"></td>
+                <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"></td>
                 <td>
                     <button class="btn-editar" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
+                    <button class="btn-del" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
                 </td>
             </tr>
         `).join('');
+    }
+    
+    async function actualizarNombre(id, nuevoNombre) {
+        if (!nuevoNombre.trim()) { alert("El nombre no puede estar vacío"); return cargarInventario(); }
+        window.tempNombre = { id, nombre: nuevoNombre.trim() };
+    }
+    
+    async function actualizarCosto(id, valor) { window.tempCosto = { id, valor: parseFloat(valor) }; }
+    async function actualizarPrecio(id, valor) { window.tempPrecio = { id, valor: parseFloat(valor) }; }
+    
+    async function guardarCambiosProducto(id) {
+        const updates = {};
+        if (window.tempNombre && window.tempNombre.id === id) updates.nombre = window.tempNombre.nombre;
+        if (window.tempCosto && window.tempCosto.id === id) updates.costo = window.tempCosto.valor;
+        if (window.tempPrecio && window.tempPrecio.id === id) updates.precio_venta = window.tempPrecio.valor;
+        
+        if (Object.keys(updates).length > 0) {
+            const { error } = await _supabase.from('productos').update(updates).eq('id', id);
+            if (error) alert("Error: " + error.message);
+            else alert("✅ Producto actualizado");
+            cargarInventario();
+            cargarPOS();
+        }
+    }
+    
+    async function eliminarHelado(id, nombre) {
+        if(confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) {
+            const { error } = await _supabase.from('productos').delete().eq('id', id);
+            if (error) alert("Error: " + error.message);
+            else alert(`✅ "${nombre}" eliminado`);
+            cargarInventario();
+            cargarPOS();
+        }
     }
     
     async function modStock(id, actual, cambio) {
@@ -382,25 +423,28 @@
         cargarPOS();
     }
     
-    async function actualizarCosto(id, valor) {
-        window.tempCosto = { id, valor: parseFloat(valor) };
+    function abrirModalAgregar() {
+        document.getElementById('modal-agregar').style.display = 'flex';
+        document.getElementById('nuevo-nombre').value = '';
+        document.getElementById('nuevo-stock').value = '0';
+        document.getElementById('nuevo-costo').value = '0';
+        document.getElementById('nuevo-precio').value = '0';
     }
     
-    async function actualizarPrecio(id, valor) {
-        window.tempPrecio = { id, valor: parseFloat(valor) };
-    }
+    function cerrarModal() { document.getElementById('modal-agregar').style.display = 'none'; }
     
-    async function guardarCambiosProducto(id) {
-        const updates = {};
-        if (window.tempCosto && window.tempCosto.id === id) updates.costo = window.tempCosto.valor;
-        if (window.tempPrecio && window.tempPrecio.id === id) updates.precio_venta = window.tempPrecio.valor;
+    async function agregarHelado() {
+        const nombre = document.getElementById('nuevo-nombre').value.trim();
+        const stock = parseInt(document.getElementById('nuevo-stock').value) || 0;
+        const costo = parseFloat(document.getElementById('nuevo-costo').value) || 0;
+        const precio = parseFloat(document.getElementById('nuevo-precio').value) || 0;
         
-        if (Object.keys(updates).length > 0) {
-            await _supabase.from('productos').update(updates).eq('id', id);
-            alert("Producto actualizado");
-            cargarInventario();
-            cargarPOS();
-        }
+        if (!nombre) { alert("Por favor ingresa un nombre para el helado"); return; }
+        
+        const { error } = await _supabase.from('productos').insert({ nombre, stock, costo, precio_venta: precio });
+        
+        if (error) { alert("Error: " + error.message); }
+        else { alert(`✅ Helado "${nombre}" agregado correctamente`); cerrarModal(); cargarInventario(); cargarPOS(); }
     }
 
     async function cargarHistorial() {
@@ -415,10 +459,8 @@
                 <td>$${v.total_usd.toFixed(2)}</td>
                 <td>Bs ${v.total_bs.toFixed(2)}</td>
                 <td><span class="badge-${v.estado}">${v.estado === 'pagado' ? '✓ Pagado' : '⏳ Pendiente'}</span></td>
-                <td>
-                    ${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
-                    <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button>
-                </td>
+                <td>${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
+                <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button></td>
             </tr>
         `).join('');
     }
@@ -427,25 +469,14 @@
         if(confirm(`¿Confirmar pago de $${totalUsd.toFixed(2)}?`)) {
             const tasaActual = parseFloat(document.getElementById('tasa-val').value);
             const totalBsActual = totalUsd * tasaActual;
-            
-            const { error } = await _supabase.from('ventas').update({ 
-                estado: 'pagado',
-                tasa_momento: tasaActual,
-                total_bs: totalBsActual
-            }).eq('id', id);
-            
-            if(error) {
-                alert("Error: " + error.message);
-            } else {
-                alert("Pago confirmado exitosamente");
-                cargarHistorial();
-                cargarCaja();
-            }
+            const { error } = await _supabase.from('ventas').update({ estado: 'pagado', tasa_momento: tasaActual, total_bs: totalBsActual }).eq('id', id);
+            if(error) alert("Error: " + error.message);
+            else { alert("Pago confirmado"); cargarHistorial(); cargarCaja(); }
         }
     }
 
     async function borrarV(id) {
-        if(confirm("¿Eliminar esta venta? Esta acción no se puede deshacer.")) {
+        if(confirm("¿Eliminar esta venta?")) {
             await _supabase.from('ventas').delete().eq('id', id);
             cargarHistorial();
             cargarCaja();
@@ -459,19 +490,13 @@
         
         const ventasMes = data.filter(v => v.fecha && v.fecha.startsWith(mes));
         const ventasPagadasMes = ventasMes.filter(v => v.estado === 'pagado');
-        
-        // Total en USD (solo pagadas)
         const totalUsd = ventasPagadasMes.reduce((a,b) => a + b.total_usd, 0);
-        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
-        
-        // Total en Bs (suma histórica con tasa de cada venta)
         const totalBs = ventasPagadasMes.reduce((a,b) => a + b.total_bs, 0);
+        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
         document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
         
-        // Calcular ganancia (necesitamos los costos de los productos)
         let costoTotal = 0;
         for (const venta of ventasPagadasMes) {
-            // Extraer los nombres de productos de la venta
             const productosVendidos = venta.productos_detalle.split(', ');
             for (const prodDetalle of productosVendidos) {
                 const match = prodDetalle.match(/(.+?)\s*x(\d+)/);
@@ -479,22 +504,17 @@
                     const nombreProducto = match[1].trim();
                     const cantidad = parseInt(match[2]);
                     const { data: producto } = await _supabase.from('productos').select('costo').eq('nombre', nombreProducto).single();
-                    if (producto && producto.costo) {
-                        costoTotal += producto.costo * cantidad;
-                    }
+                    if (producto && producto.costo) costoTotal += producto.costo * cantidad;
                 }
             }
         }
-        
         const gananciaBs = totalBs - costoTotal;
         document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
         
         const tasaActual = parseFloat(document.getElementById('tasa-val').value) || 0;
         document.getElementById('tasa-actual-ganancia').textContent = tasaActual.toFixed(2);
-        const gananciaUsd = tasaActual > 0 ? gananciaBs / tasaActual : 0;
-        document.getElementById('caja-ganancia-usd').textContent = `$${gananciaUsd.toFixed(2)}`;
+        document.getElementById('caja-ganancia-usd').textContent = `$${(tasaActual > 0 ? gananciaBs / tasaActual : 0).toFixed(2)}`;
         
-        // Pagos pendientes
         const ventasPendientes = data.filter(v => v.estado === 'pendiente');
         const totalPendienteUsd = ventasPendientes.reduce((a,b) => a + b.total_usd, 0);
         document.getElementById('pendiente-usd').textContent = `$${totalPendienteUsd.toFixed(2)}`;
