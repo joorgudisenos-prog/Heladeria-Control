@@ -121,7 +121,7 @@
             <div style="background:#e0f2fe; padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="font-weight:bold;">💵 Tasa BCV:</span>
                 <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:100px; font-weight:bold; border:2px solid var(--primary); border-radius:6px; padding:5px;">
-                <button onclick="actualizarTasaAutomatica()" style="background:#2563eb; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold;">🔄 ACTUALIZAR</button>
+                <button onclick="()" style="background:#2563eb; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold;">🔄 ACTUALIZAR</button>
             </div>
         </div>
         <div class="pos-layout">
@@ -229,33 +229,81 @@
     };
 
     async function cargarTasaBD() {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
+    const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+    if (data && data.tasa_bcv) {
+        document.getElementById('tasa-val').value = data.tasa_bcv;
+    } else {
+        // Si no hay tasa guardada, usar valor por defecto
+        document.getElementById('tasa-val').value = '50.00';
+        await guardarTasaBD(50.00);
     }
+}
 
-    async function guardarTasaBD(valor) {
-        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
-        dibujarCarrito();
-        if (document.getElementById('caja').classList.contains('active')) cargarCaja();
+async function guardarTasaBD(valor) {
+    await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
+    dibujarCarrito();
+    if (document.getElementById('caja').classList.contains('active')) cargarCaja();
+}
+
+async function actualizarTasaAutomatica() {
+    const input = document.getElementById('tasa-val');
+    const btnActualizar = document.querySelector('#tasa-val + button');
+    
+    if (btnActualizar) {
+        btnActualizar.innerText = '🔄 Buscando...';
+        btnActualizar.disabled = true;
     }
-
-    async function actualizarTasaAutomatica() {
-        const input = document.getElementById('tasa-val');
-        const proxy = "https://api.allorigins.win/get?url=";
-        const target = encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial");
+    
+    try {
+        // Usar proxy para evitar problemas de CORS
+        const proxy = 'https://api.allorigins.win/get?url=';
+        const url = encodeURIComponent('https://ve.dolarapi.com/v1/dolares/oficial');
         
-        try {
-            const res = await fetch(proxy + target);
-            const json = await res.json();
+        console.log('Buscando tasa BCV...');
+        const response = await fetch(proxy + url);
+        const json = await response.json();
+        
+        if (json.contents) {
             const data = JSON.parse(json.contents);
-            if(data.promedio) {
-                const redondeado = parseFloat(data.promedio).toFixed(2);
-                input.value = redondeado;
-                await guardarTasaBD(redondeado);
+            console.log('Respuesta:', data);
+            
+            if (data && data.promedio) {
+                const tasa = parseFloat(data.promedio).toFixed(2);
+                input.value = tasa;
+                await guardarTasaBD(tasa);
+                alert(`✅ Tasa BCV actualizada: Bs ${tasa}`);
+            } else {
+                throw new Error('No se encontró el campo promedio');
             }
-        } catch(e) { console.log("Error al obtener tasa:", e); }
+        } else {
+            throw new Error('No se pudo obtener la tasa');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        
+        // Si falla la API, preguntar manualmente
+        const tasaManual = prompt(
+            '⚠️ No se pudo obtener la tasa automática.\n' +
+            'Puedes ingresarla manualmente (ejemplo: 56.78):',
+            input.value || '50.00'
+        );
+        
+        if (tasaManual && !isNaN(tasaManual)) {
+            const tasa = parseFloat(tasaManual).toFixed(2);
+            input.value = tasa;
+            await guardarTasaBD(tasa);
+            alert(`💰 Tasa establecida manualmente: Bs ${tasa}`);
+        } else {
+            alert('❌ No se actualizó la tasa. Puedes escribirla manualmente en el campo.');
+        }
     }
-
+    
+    if (btnActualizar) {
+        btnActualizar.innerText = '🔄 ACTUALIZAR';
+        btnActualizar.disabled = false;
+    }
+}
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
