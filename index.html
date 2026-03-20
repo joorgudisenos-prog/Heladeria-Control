@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.6 - Fix Total</title>
+    <title>Cali Control v4.7 - Fix Botones y Colores</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
             --primary: #2563eb; --success: #3ab568; --danger: #ef4e57; --warning: #f59e0b; --dark: #1e293b; 
-            --text-dark: #1f5e3d; --text-danger-dark: #81292e; 
+            --text-dark: #1f5e3d; /* Texto oscuro sobre verde */
+            --text-danger-dark: #81292e; /* Texto oscuro sobre rojo */
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
@@ -18,22 +19,49 @@
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
         
-        /* Botones estilo imagen */
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        /* POS Estilo Maqueta */
+        .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        @media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; align-content: start; }
+        
+        /* --- ESTILO BOTÓN UNIFORME v4.7 --- */
         .product-btn { 
-            background-color: var(--success); border: none; border-radius: 25px; padding: 15px;
+            background-color: var(--success); border: none; border-radius: 20px; padding: 15px;
             display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); aspect-ratio: 2 / 1;
+            transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            aspect-ratio: 2.1 / 1; box-sizing: border-box; overflow: hidden;
         }
-        .product-btn.agotado { background-color: var(--danger); opacity: 0.8; }
-        .product-btn .name-area { font-size: 1.1rem; font-weight: 800; color: var(--text-dark); text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
-        .product-btn .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; font-size: 0.9rem; }
+        
+        /* --- CORRECCIÓN COLOR AGOTADO --- */
+        .product-btn.agotado { 
+            background-color: var(--danger); 
+            cursor: not-allowed; 
+            opacity: 0.8; 
+        }
+        .product-btn .name-area { font-size: 1.15rem; font-weight: 800; text-transform: uppercase; color: var(--text-dark); text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; line-height: 1.1; }
+        
+        /* NUEVO: Color de letra rojo oscuro cuando está agotado */
+        .product-btn.agotado .name-area { color: var(--text-danger-dark); }
+        
+        .product-btn .info-area { display: flex; justify-content: space-between; align-items: center; color: white; font-weight: 700; }
         
         .cart-panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #ddd; position: sticky; top: 80px; }
+        
+        /* Inventario Estilo */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        .inline-input { border: 1px solid #ccc; padding: 6px; border-radius: 6px; width: 100%; box-sizing: border-box; }
-        .stat-card { padding: 20px; border-radius: 12px; color: white; text-align: center; }
+        
+        /* --- RESTAURADOS: BOTONES STOCK --- */
+        .btn-stock { width: 35px; height: 35px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
+        .btn-plus { background: var(--success); }
+        .btn-minus { background: var(--danger); }
+        
+        .btn-save { background: var(--success); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; padding: 5px; }
+        
+        .inline-input { border: 1px solid #ccc; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .add-form { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+        .stat-card { padding: 25px; border-radius: 12px; color: white; text-align: center; }
     </style>
 </head>
 <body>
@@ -51,11 +79,11 @@
             <h2>Punto de Venta</h2>
             <div style="background:#e0f2fe; padding:8px; border-radius:8px; display:flex; align-items:center; gap:8px;">
                 <small>BCV:</small>
-                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent;">
-                <button onclick="actualizarTasaAutomatica()" style="background:var(--primary); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:0.7rem;">ACTUALIZAR</button>
+                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent; font-size:1.1rem;">
+                <button onclick="actualizarTasaAutomatica()" style="background:var(--primary); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:0.7rem; font-weight:bold;">ACTUALIZAR</button>
             </div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 20px;">
+        <div class="pos-layout">
             <div id="pos-lista" class="products-grid"></div>
             <div class="cart-panel">
                 <h3>Pedido</h3>
@@ -74,8 +102,8 @@
 
     <div id="inventario" class="section">
         <h2>Gestión de Helados</h2>
-        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; align-items: end; margin-bottom: 20px;">
-            <div><label><small>Nombre</small></label><input type="text" id="new-nom" class="inline-input"></div>
+        <div class="add-form">
+            <div><label><small>Nombre Helado</small></label><input type="text" id="new-nom" class="inline-input" placeholder="Ej: Tinita Fresa"></div>
             <div><label><small>Stock</small></label><input type="number" id="new-stock" class="inline-input" value="0"></div>
             <div><label><small>Costo $</small></label><input type="number" step="0.01" id="new-costo" class="inline-input" value="0.00"></div>
             <div><label><small>Venta $</small></label><input type="number" step="0.01" id="new-venta" class="inline-input" value="0.00"></div>
@@ -87,8 +115,36 @@
         </table>
     </div>
 
-    <div id="historial" class="section"><h2>Historial</h2><input type="month" id="filtro-mes" onchange="cargarHistorial()"><table id="tabla-hist"><thead><tr><th>Fecha</th><th>Cliente</th><th>USD</th><th>Bs</th><th>Estado</th><th></th></tr></thead><tbody></tbody></table></div>
-    <div id="caja" class="section"><h2>Saldo</h2><input type="month" id="filtro-caja" onchange="cargarCaja()"><div id="stats-caja" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;"></div></div>
+    <div id="historial" class="section">
+        <h2>Historial de Ventas</h2>
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:15px; padding:8px; border-radius:8px; border:1px solid #ccc;">
+        <table id="tabla-hist">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th></th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="caja" class="section">
+        <h2>Resumen de Saldo</h2>
+        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:25px; padding:10px; border-radius:8px; border:1px solid #ccc;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div class="stat-card" style="background:var(--primary)">
+                <h3>Total Vendido</h3>
+                <p id="caja-total-usd" style="font-size:1.8rem; font-weight:800; margin:5px 0;">$0.00</p>
+                <p id="caja-total-bs" style="font-size:1.3rem; opacity:0.9;">Bs 0.00</p>
+            </div>
+            <div class="stat-card" style="background:var(--success)">
+                <h3>Ganancia Neta (Bs)</h3>
+                <p id="caja-ganancia-bs" style="font-size:2rem; font-weight:800;">Bs 0.00</p>
+                <small>*Calculado con tasa histórica</small>
+            </div>
+            <div class="stat-card" style="background:var(--warning)">
+                <h3>Por Cobrar</h3>
+                <p id="caja-pendientes" style="font-size:2rem; font-weight:800;">$0.00</p>
+                <small>(Solo en USD)</small>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -115,18 +171,24 @@
         if (data) document.getElementById('tasa-val').value = data.tasa_bcv.toFixed(2);
     }
 
-    async function guardarTasaBD(v) { await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(v) }).eq('id', 1); dibujarCarrito(); }
+    async function guardarTasaBD(valor) {
+        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
+        dibujarCarrito();
+    }
 
     async function actualizarTasaAutomatica() {
+        const proxy = "https://api.allorigins.win/get?url=";
+        const target = encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial");
         try {
-            const res = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial"));
+            const res = await fetch(proxy + target);
             const json = await res.json();
             const data = JSON.parse(json.contents);
             if(data.promedio) {
-                document.getElementById('tasa-val').value = data.promedio.toFixed(2);
-                await guardarTasaBD(data.promedio);
+                const rounded = parseFloat(data.promedio).toFixed(2);
+                document.getElementById('tasa-val').value = rounded;
+                await guardarTasaBD(rounded);
             }
-        } catch(e) { console.error("Error tasa"); }
+        } catch(e) { console.log("BCV Error"); }
     }
 
     function showTab(id) {
@@ -146,7 +208,10 @@
         document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
             <button class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
                 <div class="name-area">${p.nombre}</div>
-                <div class="info-area"><span>${p.stock} dips.</span><span>$${p.precio_venta.toFixed(2)}</span></div>
+                <div class="info-area">
+                    <span class="disp-text">${p.stock} dips.</span>
+                    <span class="price-text">${p.precio_venta.toFixed(2)}$</span>
+                </div>
             </button>
         `).join('');
     }
@@ -162,9 +227,11 @@
     function dibujarCarrito() {
         const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
         let total = 0;
-        document.getElementById('carrito-items').innerHTML = carrito.map(item => {
+        document.getElementById('carrito-items').innerHTML = carrito.map((item, i) => {
             total += item.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${item.nombre}</span><span>$${item.precio_venta.toFixed(2)}</span></div>`;
+            return `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px; background:white; padding:5px; border-radius:5px;">
+                <span>${item.nombre}</span><span>$${item.precio_venta.toFixed(2)}</span>
+            </div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
@@ -172,36 +239,50 @@
 
     async function finalizarVenta(estado) {
         if(carrito.length === 0) return;
-        const totalUsd = carrito.reduce((a, b) => a + b.precio_venta, 0);
-        const costoTotalUsd = carrito.reduce((a, b) => a + (b.precio_costo || 0), 0);
+        const totalUsd = carrito.reduce((acc, i) => acc + i.precio_venta, 0);
+        const costoTotalUsd = carrito.reduce((acc, i) => acc + (i.precio_costo || 0), 0);
         const tasa = parseFloat(document.getElementById('tasa-val').value);
-        
-        const { error } = await _supabase.from('ventas').insert({
+        await _supabase.from('ventas').insert({
             cliente_nombre: document.getElementById('cliente-nombre').value || 'Gral',
             productos_detalle: carrito.map(c => c.nombre).join(', '),
             total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, costo_total_usd: costoTotalUsd, estado: estado
         });
-
-        if(!error) {
-            for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
-            limpiarCarrito();
-            alert("Venta guardada");
-        } else { alert("Error: " + error.message); }
+        for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
+        limpiarCarrito();
+        alert("Venta registrada");
     }
 
-    function limpiarCarrito() { carrito = []; document.getElementById('cliente-nombre').value = ''; cargarPOS(); dibujarCarrito(); }
+    function limpiarCarrito() {
+        carrito = [];
+        document.getElementById('cliente-nombre').value = '';
+        cargarPOS();
+        dibujarCarrito();
+    }
 
     async function cargarInventario() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
             <tr>
                 <td><input type="text" class="inline-input" value="${p.nombre}" id="inv-nom-${p.id}"></td>
-                <td><strong>${p.stock}</strong></td>
-                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_costo || 0}" id="inv-costo-${p.id}"></td>
-                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_venta || 0}" id="inv-venta-${p.id}"></td>
-                <td><button onclick="actualizarProducto(${p.id})" style="background:var(--success); color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">✓</button></td>
+                
+                <td style="display:flex; align-items:center;">
+                    <button class="btn-stock btn-minus" onclick="modStockBD(${p.id}, ${p.stock}, -1)">-</button>
+                    <span style="font-weight:bold; margin:0 10px; font-size:1.1rem; width: 30px; text-align: center;">${p.stock}</span>
+                    <button class="btn-stock btn-plus" onclick="modStockBD(${p.id}, ${p.stock}, 1)">+</button>
+                </td>
+                
+                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_costo}" id="inv-costo-${p.id}"></td>
+                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_venta}" id="inv-venta-${p.id}"></td>
+                <td><button class="btn-save" onclick="actualizarProducto(${p.id})">✓</button></td>
             </tr>
         `).join('');
+    }
+
+    async function modStockBD(id, actual, cambio) {
+        const nuevo = actual + cambio;
+        if(nuevo < 0) return; // No permitir stock negativo
+        await _supabase.from('productos').update({ stock: nuevo }).eq('id', id);
+        cargarInventario();
     }
 
     async function actualizarProducto(id) {
@@ -209,7 +290,7 @@
         const c = parseFloat(document.getElementById(`inv-costo-${id}`).value);
         const v = parseFloat(document.getElementById(`inv-venta-${id}`).value);
         await _supabase.from('productos').update({ nombre: n, precio_costo: c, precio_venta: v }).eq('id', id);
-        alert("Actualizado");
+        alert("Guardado");
         cargarInventario();
     }
 
@@ -218,33 +299,48 @@
         const s = parseInt(document.getElementById('new-stock').value) || 0;
         const c = parseFloat(document.getElementById('new-costo').value) || 0;
         const v = parseFloat(document.getElementById('new-venta').value) || 0;
-        if(!n) return alert("Nombre requerido");
-        const { error } = await _supabase.from('productos').insert({ nombre: n, stock: s, precio_costo: c, precio_venta: v });
-        if(!error) { alert("Añadido"); cargarInventario(); } else { alert(error.message); }
+        if(!n) return alert("Indica el nombre del helado");
+        await _supabase.from('productos').insert({ nombre: n, stock: s, precio_costo: c, precio_venta: v });
+        document.getElementById('new-nom').value = '';
+        document.getElementById('new-stock').value = '0';
+        document.getElementById('new-costo').value = '0.00';
+        document.getElementById('new-venta').value = '0.00';
+        cargarInventario();
     }
 
     async function cargarHistorial() {
         const mes = document.getElementById('filtro-mes').value;
         const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
-        const f = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
-        document.querySelector('#tabla-hist tbody').innerHTML = f.map(v => `<tr><td>${v.fecha.substring(8,10)}</td><td>${v.cliente_nombre}</td><td>$${v.total_usd.toFixed(2)}</td><td>Bs ${v.total_bs.toFixed(2)}</td><td style="color:${v.estado==='pendiente'?'red':'green'}">${v.estado}</td><td><button onclick="borrarV(${v.id})">✕</button></td></tr>`).join('');
+        const filtrados = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
+        document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
+            <tr>
+                <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
+                <td><strong>${v.cliente_nombre}</strong><br><small style="color:#666">${v.productos_detalle}</small></td>
+                <td>$${v.total_usd.toFixed(2)}</td>
+                <td>Bs ${v.total_bs.toFixed(2)}</td>
+                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado.toUpperCase()}</strong></td>
+                <td><button onclick="borrarV(${v.id})" style="border:none; background:none; color:var(--danger); cursor:pointer;">✕</button></td>
+            </tr>
+        `).join('');
+    }
+
+    async function borrarV(id) {
+        if(confirm("¿Borrar venta?")) { await _supabase.from('ventas').delete().eq('id', id); cargarHistorial(); }
     }
 
     async function cargarCaja() {
         const mes = document.getElementById('filtro-caja').value;
         const { data } = await _supabase.from('ventas').select('*');
         if(!data) return;
-        const m = data.filter(v => v.fecha.startsWith(mes));
-        const totalUsd = m.reduce((a,b)=>a+b.total_usd,0);
-        const totalBs = m.filter(v=>v.estado==='pagado').reduce((a,b)=>a+b.total_bs,0);
-        const gananciaBs = m.filter(v=>v.estado==='pagado').reduce((a,b)=>a+(b.total_bs - ((b.costo_total_usd||0)*b.tasa_momento)), 0);
-        const pendientes = m.filter(v=>v.estado==='pendiente').reduce((a,b)=>a+b.total_usd,0);
-        
-        document.getElementById('stats-caja').innerHTML = `
-            <div class="stat-card" style="background:var(--primary)"><h3>Total Vendido</h3><p>$${totalUsd.toFixed(2)}</p><p>Bs ${totalBs.toFixed(2)}</p></div>
-            <div class="stat-card" style="background:var(--success)"><h3>Ganancia Real</h3><p>Bs ${gananciaBs.toFixed(2)}</p></div>
-            <div class="stat-card" style="background:var(--warning)"><h3>Por Cobrar</h3><p>$${pendientes.toFixed(2)}</p></div>
-        `;
+        const mesData = data.filter(v => v.fecha.startsWith(mes));
+        const totalUsd = mesData.reduce((a,b) => a + b.total_usd, 0);
+        const totalBs = mesData.filter(v => v.estado === 'pagado').reduce((a,b) => a + b.total_bs, 0);
+        const gananciaBs = mesData.filter(v => v.estado === 'pagado').reduce((a,b) => a + (b.total_bs - ((b.costo_total_usd || 0) * b.tasa_momento)), 0);
+        const pendientes = mesData.filter(v => v.estado === 'pendiente').reduce((a,b) => a + b.total_usd, 0);
+        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
+        document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
+        document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
+        document.getElementById('caja-pendientes').textContent = `$${pendientes.toFixed(2)}`;
     }
 </script>
 </body>
