@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.1 - Helados Cali</title>
+    <title>Cali Control v4.2 - Helados Cali (Costos en USD)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -58,7 +58,7 @@
         .badge-pendiente { background: var(--warning); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
         .badge-pagado { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
         input, .editable-input { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100px; text-align: center; }
-        .nombre-input { width: 120px; text-align: left; }
+        .nombre-input { width: 140px; text-align: left; }
         .modal {
             display: none;
             position: fixed;
@@ -102,6 +102,7 @@
         .btn-confirmar { background: var(--success); color: white; }
         .btn-cancelar { background: #94a3b8; color: white; }
         .acciones-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .text-muted { color: #64748b; font-size: 0.7rem; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -153,10 +154,11 @@
         </div>
         <table id="tabla-inv">
             <thead>
-                <tr><th>Producto</th><th>Stock</th><th>Costo (Bs)</th><th>Precio Venta ($)</th><th>Acciones</th>\\
+                <tr><th>Producto</th><th>Stock</th><th>Costo (USD)</th><th>Precio Venta (USD)</th><th>Ganancia x Unidad (USD)</th><th>Acciones</th>\\
             </thead>
             <tbody></tbody>
-        </table>
+        堰
+        <div class="text-muted" style="margin-top: 10px;">💡 Los costos y precios están en DÓLARES. La ganancia en Bolívares se calcula con la tasa del día de la venta.</div>
     </div>
 
     <div id="historial" class="section">
@@ -164,10 +166,10 @@
         <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px; padding:8px; border-radius:5px; border:1px solid #ccc;">
         <table id="tabla-hist">
             <thead>
-                <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Estado</th><th>Acciones</th></tr>
+                <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Ganancia Bs</th><th>Estado</th><th>Acciones</th>\\
             </thead>
             <tbody></tbody>
-        </table>
+        堰
     </div>
 
     <div id="caja" class="section">
@@ -177,8 +179,8 @@
         <div class="stats-grid">
             <div class="stat-card"><h4>💰 Total Vendido en Dólares</h4><div class="value" id="caja-total-usd">$0.00</div><small>Suma de todas las ventas en USD</small></div>
             <div class="stat-card"><h4>💵 Total Vendido en Bolívares</h4><div class="value" id="caja-total-bs">Bs 0.00</div><small>Suma histórica con tasa de cada venta</small></div>
-            <div class="stat-card"><h4>📈 Total Ganancia (Bs)</h4><div class="value" id="caja-ganancia-bs">Bs 0.00</div><small>Ventas - Costo de los productos</small></div>
-            <div class="stat-card"><h4>💲 Ganancia en Dólares (tasa actual)</h4><div class="value" id="caja-ganancia-usd">$0.00</div><small>Convertido a tasa actual: <span id="tasa-actual-ganancia">0</span> Bs/$</small></div>
+            <div class="stat-card"><h4>📈 Total Ganancia (Bs)</h4><div class="value" id="caja-ganancia-bs">Bs 0.00</div><small>(Precio Venta - Costo) × Tasa del día</small></div>
+            <div class="stat-card"><h4>💲 Ganancia en Dólares (tasa actual)</h4><div class="value" id="caja-ganancia-usd">$0.00</div><small>Ganancia en Bs ÷ Tasa actual: <span id="tasa-actual-ganancia">0</span> Bs/$</small></div>
         </div>
         
         <div class="card-stats">
@@ -198,8 +200,8 @@
         <h3>🍨 Añadir Nuevo Helado</h3>
         <input type="text" id="nuevo-nombre" placeholder="Nombre del helado">
         <input type="number" id="nuevo-stock" placeholder="Stock inicial" value="0">
-        <input type="number" id="nuevo-costo" placeholder="Costo (Bs)" step="0.01" value="0">
-        <input type="number" id="nuevo-precio" placeholder="Precio venta ($)" step="0.01" value="0">
+        <input type="number" id="nuevo-costo" placeholder="Costo (USD)" step="0.01" value="0">
+        <input type="number" id="nuevo-precio" placeholder="Precio venta (USD)" step="0.01" value="0">
         <div class="modal-buttons">
             <button class="btn-confirmar" onclick="agregarHelado()">✅ Agregar</button>
             <button class="btn-cancelar" onclick="cerrarModal()">❌ Cancelar</button>
@@ -335,9 +337,21 @@
         const nombreCliente = document.getElementById('cliente-nombre').value.trim() || 'Cliente General';
         const productosDetalle = carrito.map(i => `${i.nombre} x${i.cantidad || 1}`).join(', ');
         
+        // Calcular ganancia en Bs para esta venta (para guardar en historial)
+        let gananciaBs = 0;
+        for (const item of carrito) {
+            const gananciaPorUnidadUsd = item.precio_venta - (item.costo || 0);
+            gananciaBs += gananciaPorUnidadUsd * tasa * (item.cantidad || 1);
+        }
+        
         const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: nombreCliente, productos_detalle: productosDetalle,
-            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
+            cliente_nombre: nombreCliente, 
+            productos_detalle: productosDetalle,
+            total_usd: totalUsd, 
+            tasa_momento: tasa, 
+            total_bs: totalUsd * tasa,
+            ganancia_bs: gananciaBs,
+            estado: estado
         });
 
         if(error) { alert("Error al guardar: " + error.message); return; }
@@ -365,22 +379,25 @@
 
     async function cargarInventario() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
-        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
-            <tr>
+        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => {
+            const gananciaUnidadUsd = (p.precio_venta - (p.costo || 0)).toFixed(2);
+            return `
+             <tr>
                 <td><input type="text" id="nombre-${p.id}" value="${p.nombre}" class="nombre-input" style="width:140px;" onchange="actualizarNombre(${p.id}, this.value)"></td>
                 <td>
                     <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
                     <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
                 </td>
-                <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"></td>
-                <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"></td>
+                <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
+                <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
+                <td style="color:var(--success); font-weight:bold;">$${gananciaUnidadUsd}</td>
                 <td>
                     <button class="btn-editar" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
                     <button class="btn-del" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
     
     async function actualizarNombre(id, nuevoNombre) {
@@ -453,11 +470,12 @@
         const filtrados = data ? data.filter(v => v.fecha && v.fecha.startsWith(mes)) : [];
         
         document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
-            <tr>
+             <tr>
                 <td>${v.fecha ? new Date(v.fecha).toLocaleDateString() : 'Sin fecha'}</td>
                 <td>${v.cliente_nombre}</td>
                 <td>$${v.total_usd.toFixed(2)}</td>
                 <td>Bs ${v.total_bs.toFixed(2)}</td>
+                <td style="color:var(--success);">Bs ${(v.ganancia_bs || 0).toFixed(2)}</td>
                 <td><span class="badge-${v.estado}">${v.estado === 'pagado' ? '✓ Pagado' : '⏳ Pendiente'}</span></td>
                 <td>${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
                 <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button></td>
@@ -469,7 +487,33 @@
         if(confirm(`¿Confirmar pago de $${totalUsd.toFixed(2)}?`)) {
             const tasaActual = parseFloat(document.getElementById('tasa-val').value);
             const totalBsActual = totalUsd * tasaActual;
-            const { error } = await _supabase.from('ventas').update({ estado: 'pagado', tasa_momento: tasaActual, total_bs: totalBsActual }).eq('id', id);
+            
+            // Recalcular ganancia para esta venta
+            const { data: venta } = await _supabase.from('ventas').select('productos_detalle').eq('id', id).single();
+            let gananciaBs = 0;
+            if (venta && venta.productos_detalle) {
+                const productosVendidos = venta.productos_detalle.split(', ');
+                for (const prodDetalle of productosVendidos) {
+                    const match = prodDetalle.match(/(.+?)\s*x(\d+)/);
+                    if (match) {
+                        const nombreProducto = match[1].trim();
+                        const cantidad = parseInt(match[2]);
+                        const { data: producto } = await _supabase.from('productos').select('costo, precio_venta').eq('nombre', nombreProducto).single();
+                        if (producto) {
+                            const gananciaUnidadUsd = producto.precio_venta - (producto.costo || 0);
+                            gananciaBs += gananciaUnidadUsd * tasaActual * cantidad;
+                        }
+                    }
+                }
+            }
+            
+            const { error } = await _supabase.from('ventas').update({ 
+                estado: 'pagado', 
+                tasa_momento: tasaActual, 
+                total_bs: totalBsActual,
+                ganancia_bs: gananciaBs
+            }).eq('id', id);
+            
             if(error) alert("Error: " + error.message);
             else { alert("Pago confirmado"); cargarHistorial(); cargarCaja(); }
         }
@@ -492,23 +536,10 @@
         const ventasPagadasMes = ventasMes.filter(v => v.estado === 'pagado');
         const totalUsd = ventasPagadasMes.reduce((a,b) => a + b.total_usd, 0);
         const totalBs = ventasPagadasMes.reduce((a,b) => a + b.total_bs, 0);
+        const gananciaBs = ventasPagadasMes.reduce((a,b) => a + (b.ganancia_bs || 0), 0);
+        
         document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
         document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
-        
-        let costoTotal = 0;
-        for (const venta of ventasPagadasMes) {
-            const productosVendidos = venta.productos_detalle.split(', ');
-            for (const prodDetalle of productosVendidos) {
-                const match = prodDetalle.match(/(.+?)\s*x(\d+)/);
-                if (match) {
-                    const nombreProducto = match[1].trim();
-                    const cantidad = parseInt(match[2]);
-                    const { data: producto } = await _supabase.from('productos').select('costo').eq('nombre', nombreProducto).single();
-                    if (producto && producto.costo) costoTotal += producto.costo * cantidad;
-                }
-            }
-        }
-        const gananciaBs = totalBs - costoTotal;
         document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
         
         const tasaActual = parseFloat(document.getElementById('tasa-val').value) || 0;
