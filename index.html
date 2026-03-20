@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.2 - Helados Cali (Costos en USD)</title>
+    <title>Cali Control v4.3 - Helados Cali</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -168,10 +168,11 @@
         </div>
         <table id="tabla-inv">
             <thead>
-                <tr><th>Producto</th><th>Stock</th><th>Costo (USD)</th><th>Precio Venta (USD)</th><th>Ganancia x Unidad (USD)</th><th>Acciones</th>\\
+                <tr><th>Producto</th><th>Stock</th><th>Costo (USD)</th><th>Precio Venta (USD)</th><th>Ganancia x Unidad (USD)</th><th>Acciones</th>
+                </tr>
             </thead>
             <tbody></tbody>
-        堰
+         </table>
         <div class="text-muted" style="margin-top: 10px;">💡 Los costos y precios están en DÓLARES. La ganancia en Bolívares se calcula con la tasa del día de la venta.</div>
     </div>
 
@@ -180,10 +181,11 @@
         <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px; padding:8px; border-radius:5px; border:1px solid #ccc;">
         <table id="tabla-hist">
             <thead>
-                <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Ganancia Bs</th><th>Estado</th><th>Acciones</th>\\
+                <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Ganancia Bs</th><th>Estado</th><th>Acciones</th>
+                </tr>
             </thead>
             <tbody></tbody>
-        堰
+         </table>
     </div>
 
     <div id="caja" class="section">
@@ -463,15 +465,15 @@
                     <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
                     <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
-                 </td>
-                 <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
-                 <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
+                  </td>
+                  <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
+                  <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
                 <td style="color:var(--success); font-weight:bold;">$${gananciaUnidadUsd}</td>
                 <td>
                     <button class="btn-editar" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
                     <button class="btn-del" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
                 </td>
-              </tr>
+               </tr>
         `}).join('');
     }
     
@@ -541,20 +543,49 @@
 
     async function cargarHistorial() {
         const mes = document.getElementById('filtro-mes').value;
-        const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending: false});
-        const filtrados = data ? data.filter(v => v.fecha && v.fecha.startsWith(mes)) : [];
+        console.log('Cargando historial para mes:', mes);
+        
+        const { data, error } = await _supabase
+            .from('ventas')
+            .select('*')
+            .order('fecha', { ascending: false });
+        
+        if (error) {
+            console.error('Error al cargar historial:', error);
+            alert('Error al cargar historial: ' + error.message);
+            return;
+        }
+        
+        console.log('Ventas obtenidas:', data);
+        
+        let filtrados = data || [];
+        if (mes) {
+            filtrados = filtrados.filter(v => {
+                if (!v.fecha) return false;
+                return v.fecha.startsWith(mes);
+            });
+        }
+        
+        console.log('Ventas filtradas:', filtrados.length);
+        
+        if (filtrados.length === 0) {
+            document.querySelector('#tabla-hist tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay ventas en este período</td></tr>';
+            return;
+        }
         
         document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
-              <tr>
+            <tr>
                 <td>${v.fecha ? new Date(v.fecha).toLocaleDateString() : 'Sin fecha'}</td>
-                <td>${v.cliente_nombre}</td>
-                <td>$${v.total_usd.toFixed(2)}</td>
-                <td>Bs ${v.total_bs.toFixed(2)}</td>
-                <td style="color:var(--success);">Bs ${(v.ganancia_bs || 0).toFixed(2)}</td>
+                <td>${v.cliente_nombre || 'Cliente General'}</td>
+                <td>$${Number(v.total_usd || 0).toFixed(2)}</td>
+                <td>Bs ${Number(v.total_bs || 0).toFixed(2)}</td>
+                <td style="color:var(--success);">Bs ${Number(v.ganancia_bs || 0).toFixed(2)}</td>
                 <td><span class="badge-${v.estado}">${v.estado === 'pagado' ? '✓ Pagado' : '⏳ Pendiente'}</span></td>
-                <td>${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
-                <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button></td>
-              <\/tr>
+                <td>
+                    ${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
+                    <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button>
+                </td>
+            </tr>
         `).join('');
     }
     
@@ -603,14 +634,38 @@
 
     async function cargarCaja() {
         const mes = document.getElementById('filtro-caja').value;
-        const { data } = await _supabase.from('ventas').select('*');
-        if(!data) return;
+        console.log('Cargando caja para mes:', mes);
         
-        const ventasMes = data.filter(v => v.fecha && v.fecha.startsWith(mes));
+        const { data, error } = await _supabase
+            .from('ventas')
+            .select('*');
+        
+        if (error) {
+            console.error('Error al cargar caja:', error);
+            alert('Error al cargar caja: ' + error.message);
+            return;
+        }
+        
+        if (!data) {
+            console.log('No hay datos de ventas');
+            return;
+        }
+        
+        console.log('Total de ventas:', data.length);
+        
+        let ventasMes = data;
+        if (mes) {
+            ventasMes = data.filter(v => v.fecha && v.fecha.startsWith(mes));
+        }
+        
+        console.log('Ventas del mes:', ventasMes.length);
+        
         const ventasPagadasMes = ventasMes.filter(v => v.estado === 'pagado');
-        const totalUsd = ventasPagadasMes.reduce((a,b) => a + b.total_usd, 0);
-        const totalBs = ventasPagadasMes.reduce((a,b) => a + b.total_bs, 0);
-        const gananciaBs = ventasPagadasMes.reduce((a,b) => a + (b.ganancia_bs || 0), 0);
+        const totalUsd = ventasPagadasMes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
+        const totalBs = ventasPagadasMes.reduce((a, b) => a + (Number(b.total_bs) || 0), 0);
+        const gananciaBs = ventasPagadasMes.reduce((a, b) => a + (Number(b.ganancia_bs) || 0), 0);
+        
+        console.log('Totales:', { totalUsd, totalBs, gananciaBs });
         
         document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
         document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
@@ -618,10 +673,11 @@
         
         const tasaActual = parseFloat(document.getElementById('tasa-val').value) || 0;
         document.getElementById('tasa-actual-ganancia').textContent = tasaActual.toFixed(2);
-        document.getElementById('caja-ganancia-usd').textContent = `$${(tasaActual > 0 ? gananciaBs / tasaActual : 0).toFixed(2)}`;
+        const gananciaUsd = tasaActual > 0 ? gananciaBs / tasaActual : 0;
+        document.getElementById('caja-ganancia-usd').textContent = `$${gananciaUsd.toFixed(2)}`;
         
         const ventasPendientes = data.filter(v => v.estado === 'pendiente');
-        const totalPendienteUsd = ventasPendientes.reduce((a,b) => a + b.total_usd, 0);
+        const totalPendienteUsd = ventasPendientes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
         document.getElementById('pendiente-usd').textContent = `$${totalPendienteUsd.toFixed(2)}`;
         document.getElementById('pendiente-bs-equivalente').textContent = `Bs ${(totalPendienteUsd * tasaActual).toFixed(2)}`;
     }
