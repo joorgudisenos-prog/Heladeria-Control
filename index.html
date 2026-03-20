@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.3 - Saldo Completo</title>
+    <title>Cali Control v4.4 - Finanzas Reales</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -17,11 +17,11 @@
         .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
+        
+        /* POS Estilo Maqueta */
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         @media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } }
-        
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; align-content: start; }
-        
         .product-btn { 
             background-color: var(--success); border: none; border-radius: 20px; padding: 15px;
             display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
@@ -60,7 +60,7 @@
             <h2>Punto de Venta</h2>
             <div style="background:#e0f2fe; padding:8px; border-radius:8px; display:flex; align-items:center; gap:8px;">
                 <small>BCV:</small>
-                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent;">
+                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold; border:none; background:transparent; font-size:1.1rem;">
                 <button onclick="actualizarTasaAutomatica()" style="background:var(--primary); color:white; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:0.7rem;">ACTUALIZAR</button>
             </div>
         </div>
@@ -74,8 +74,8 @@
                     <strong>Total USD: </strong><span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
                     <strong>Total Bs: </strong><span id="total-bs" style="color:var(--primary); font-size:1.4rem;">Bs 0.00</span>
                 </div>
-                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">PAGO RECIBIDO</button>
-                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">PENDIENTE</button>
+                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">CONFIRMAR PAGO</button>
+                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">DEJAR PENDIENTE</button>
                 <button onclick="limpiarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:6px; border-radius:8px; cursor:pointer; margin-top:10px; font-size:0.7rem;">Vaciar</button>
             </div>
         </div>
@@ -84,7 +84,7 @@
     <div id="inventario" class="section">
         <h2>Gestión de Helados</h2>
         <div class="add-form">
-            <div><label><small>Nombre</small></label><input type="text" id="new-nom" class="inline-input" placeholder="Ej: Tinita Fresa"></div>
+            <div><label><small>Nombre</small></label><input type="text" id="new-nom" class="inline-input"></div>
             <div><label><small>Stock</small></label><input type="number" id="new-stock" class="inline-input" value="0"></div>
             <div><label><small>Costo $</small></label><input type="number" step="0.01" id="new-costo" class="inline-input" value="0.00"></div>
             <div><label><small>Venta $</small></label><input type="number" step="0.01" id="new-venta" class="inline-input" value="0.00"></div>
@@ -98,28 +98,31 @@
 
     <div id="historial" class="section">
         <h2>Historial de Ventas</h2>
-        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:15px; padding:8px; border-radius:8px; border:1px solid #ccc;">
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:15px; padding:8px; border-radius:8px;">
         <table id="tabla-hist">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th></th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="caja" class="section">
         <h2>Resumen de Saldo</h2>
-        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:25px; padding:10px; border-radius:8px; border:1px solid #ccc;">
+        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:25px; padding:10px; border-radius:8px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
             <div class="stat-card" style="background:var(--primary)">
-                <h3>Total USD (Vendido)</h3>
-                <p id="caja-total-usd" style="font-size:2rem; font-weight:800;">$0.00</p>
+                <h3>Total Vendido</h3>
+                <p id="caja-total-usd" style="font-size:1.8rem; font-weight:800; margin:5px 0;">$0.00</p>
+                <p id="caja-total-bs" style="font-size:1.3rem; opacity:0.9;">Bs 0.00</p>
             </div>
             <div class="stat-card" style="background:var(--success)">
-                <h3>Total Bs (Vendido)</h3>
-                <p id="caja-total-bs" style="font-size:2rem; font-weight:800;">Bs 0.00</p>
+                <h3>Ganancia Neta (Bs)</h3>
+                <p id="caja-ganancia-bs" style="font-size:2rem; font-weight:800;">Bs 0.00</p>
+                <small>*Calculado con tasa histórica</small>
             </div>
             <div class="stat-card" style="background:var(--warning)">
-                <h3>Por Cobrar (Pendiente)</h3>
+                <h3>Por Cobrar</h3>
                 <p id="caja-pendientes" style="font-size:2rem; font-weight:800;">$0.00</p>
+                <small>(Solo en USD)</small>
             </div>
         </div>
     </div>
@@ -166,7 +169,7 @@
                 document.getElementById('tasa-val').value = rounded;
                 await guardarTasaBD(rounded);
             }
-        } catch(e) { console.log("BCV Error"); }
+        } catch(e) { console.log("BCV Fetch Fail"); }
     }
 
     function showTab(id) {
@@ -218,15 +221,23 @@
     async function finalizarVenta(estado) {
         if(carrito.length === 0) return;
         const totalUsd = carrito.reduce((acc, i) => acc + i.precio_venta, 0);
+        // NUEVO: Guardamos el costo total para calcular ganancias reales después
+        const costoTotalUsd = carrito.reduce((acc, i) => acc + (i.precio_costo || 0), 0);
         const tasa = parseFloat(document.getElementById('tasa-val').value);
+        
         await _supabase.from('ventas').insert({
             cliente_nombre: document.getElementById('cliente-nombre').value || 'Gral',
             productos_detalle: carrito.map(c => c.nombre).join(', '),
-            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
+            total_usd: totalUsd, 
+            tasa_momento: tasa, 
+            total_bs: totalUsd * tasa, 
+            costo_total_usd: costoTotalUsd, // Guardamos esto para la ganancia
+            estado: estado
         });
+
         for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
         limpiarCarrito();
-        alert("Venta registrada");
+        alert("Venta registrada con éxito");
     }
 
     function limpiarCarrito() {
@@ -272,7 +283,7 @@
         const s = parseInt(document.getElementById('new-stock').value);
         const c = parseFloat(document.getElementById('new-costo').value);
         const v = parseFloat(document.getElementById('new-venta').value);
-        if(!n) return alert("Indica un nombre");
+        if(!n) return alert("Nombre obligatorio");
         await _supabase.from('productos').insert({ nombre: n, stock: s, precio_costo: c, precio_venta: v });
         document.getElementById('new-nom').value = '';
         cargarInventario();
@@ -285,8 +296,9 @@
         document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
             <tr>
                 <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
-                <td>${v.cliente_nombre}</td>
+                <td><strong>${v.cliente_nombre}</strong><br><small style="color:#666">${v.productos_detalle}</small></td>
                 <td>$${v.total_usd.toFixed(2)}</td>
+                <td>Bs ${v.total_bs.toFixed(2)} <br><small style="color:#888">(@${v.tasa_momento})</small></td>
                 <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado.toUpperCase()}</strong></td>
                 <td><button onclick="borrarV(${v.id})" style="border:none; background:none; color:var(--danger); cursor:pointer;">✕</button></td>
             </tr>
@@ -294,21 +306,34 @@
     }
 
     async function borrarV(id) {
-        if(confirm("¿Borrar venta?")) { await _supabase.from('ventas').delete().eq('id', id); cargarHistorial(); }
+        if(confirm("¿Borrar venta definitivamente?")) { await _supabase.from('ventas').delete().eq('id', id); cargarHistorial(); }
     }
 
     async function cargarCaja() {
         const mes = document.getElementById('filtro-caja').value;
         const { data } = await _supabase.from('ventas').select('*');
         if(!data) return;
+        
         const mesData = data.filter(v => v.fecha.startsWith(mes));
-        const totalUsd = mesData.reduce((a,b) => a+b.total_usd, 0);
-        const totalBs = mesData.reduce((a,b) => a+b.total_bs, 0);
-        const pendientes = mesData.filter(v => v.estado === 'pendiente').reduce((a,b) => a+b.total_usd, 0);
+        
+        // Sumamos lo vendido (independiente de si fue pagado o no para el total general)
+        const totalUsdVendido = mesData.reduce((a,b) => a + b.total_usd, 0);
+        
+        // Sumamos los Bs reales recibidos (solo de las ventas ya pagadas)
+        const totalBsRecibido = mesData.filter(v => v.estado === 'pagado').reduce((a,b) => a + b.total_bs, 0);
+        
+        // Calculamos Ganancia Neta en Bs: (Precio Venta Bs - Costo en Bs del momento)
+        const gananciaBs = mesData.filter(v => v.estado === 'pagado').reduce((a,b) => {
+            const costoEnBsDelMomento = (b.costo_total_usd || 0) * b.tasa_momento;
+            return a + (b.total_bs - costoEnBsDelMomento);
+        }, 0);
 
-        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
-        document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
-        document.getElementById('caja-pendientes').textContent = `$${pendientes.toFixed(2)}`;
+        const pendientesUsd = mesData.filter(v => v.estado === 'pendiente').reduce((a,b) => a + b.total_usd, 0);
+
+        document.getElementById('caja-total-usd').textContent = `$${totalUsdVendido.toFixed(2)}`;
+        document.getElementById('caja-total-bs').textContent = `Bs ${totalBsRecibido.toFixed(2)}`;
+        document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
+        document.getElementById('caja-pendientes').textContent = `$${pendientesUsd.toFixed(2)}`;
     }
 </script>
 </body>
