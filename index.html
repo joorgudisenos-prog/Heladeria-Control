@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.2 - Inventario Completo</title>
+    <title>Cali Control v4.3 - Saldo Completo</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -42,6 +42,7 @@
         .inline-input { border: 1px solid #ccc; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; }
         
         .add-form { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+        .stat-card { padding: 25px; border-radius: 12px; color: white; text-align: center; }
     </style>
 </head>
 <body>
@@ -82,15 +83,13 @@
 
     <div id="inventario" class="section">
         <h2>Gestión de Helados</h2>
-        
         <div class="add-form">
             <div><label><small>Nombre</small></label><input type="text" id="new-nom" class="inline-input" placeholder="Ej: Tinita Fresa"></div>
-            <div><label><small>Stock Inicial</small></label><input type="number" id="new-stock" class="inline-input" value="0"></div>
+            <div><label><small>Stock</small></label><input type="number" id="new-stock" class="inline-input" value="0"></div>
             <div><label><small>Costo $</small></label><input type="number" step="0.01" id="new-costo" class="inline-input" value="0.00"></div>
             <div><label><small>Venta $</small></label><input type="number" step="0.01" id="new-venta" class="inline-input" value="0.00"></div>
             <button onclick="crearProducto()" style="background:var(--primary); color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;">AÑADIR +</button>
         </div>
-
         <table id="tabla-inv">
             <thead><tr><th>Producto</th><th>Stock</th><th>Costo $</th><th>Venta $</th><th>Acción</th></tr></thead>
             <tbody></tbody>
@@ -98,20 +97,30 @@
     </div>
 
     <div id="historial" class="section">
-        <h2>Ventas</h2>
-        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:15px; padding:8px;">
+        <h2>Historial de Ventas</h2>
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:15px; padding:8px; border-radius:8px; border:1px solid #ccc;">
         <table id="tabla-hist">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="caja" class="section">
-        <h2>Saldo Mensual</h2>
-        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:20px; padding:10px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-            <div style="background:var(--primary); color:white; padding:20px; border-radius:12px; text-align:center;"><h3>USD</h3><p id="caja-total-usd" style="font-size:1.8rem;">$0.00</p></div>
-            <div style="background:var(--success); color:white; padding:20px; border-radius:12px; text-align:center;"><h3>Bs</h3><p id="caja-total-bs" style="font-size:1.8rem;">Bs 0.00</p></div>
+        <h2>Resumen de Saldo</h2>
+        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:25px; padding:10px; border-radius:8px; border:1px solid #ccc;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div class="stat-card" style="background:var(--primary)">
+                <h3>Total USD (Vendido)</h3>
+                <p id="caja-total-usd" style="font-size:2rem; font-weight:800;">$0.00</p>
+            </div>
+            <div class="stat-card" style="background:var(--success)">
+                <h3>Total Bs (Vendido)</h3>
+                <p id="caja-total-bs" style="font-size:2rem; font-weight:800;">Bs 0.00</p>
+            </div>
+            <div class="stat-card" style="background:var(--warning)">
+                <h3>Por Cobrar (Pendiente)</h3>
+                <p id="caja-pendientes" style="font-size:2rem; font-weight:800;">$0.00</p>
+            </div>
         </div>
     </div>
 </div>
@@ -127,8 +136,9 @@
 
     window.onload = async () => {
         const ahora = new Date();
-        document.getElementById('filtro-mes').value = ahora.toISOString().substring(0, 7);
-        document.getElementById('filtro-caja').value = ahora.toISOString().substring(0, 7);
+        const mesActual = ahora.toISOString().substring(0, 7);
+        document.getElementById('filtro-mes').value = mesActual;
+        document.getElementById('filtro-caja').value = mesActual;
         await cargarTasaBD();
         actualizarTasaAutomatica();
         cargarPOS();
@@ -216,7 +226,7 @@
         });
         for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
         limpiarCarrito();
-        alert("Venta guardada");
+        alert("Venta registrada");
     }
 
     function limpiarCarrito() {
@@ -253,7 +263,7 @@
         const c = parseFloat(document.getElementById(`inv-costo-${id}`).value);
         const v = parseFloat(document.getElementById(`inv-venta-${id}`).value);
         await _supabase.from('productos').update({ nombre: n, precio_costo: c, precio_venta: v }).eq('id', id);
-        alert("Cambios guardados");
+        alert("Actualizado");
         cargarInventario();
     }
 
@@ -262,7 +272,7 @@
         const s = parseInt(document.getElementById('new-stock').value);
         const c = parseFloat(document.getElementById('new-costo').value);
         const v = parseFloat(document.getElementById('new-venta').value);
-        if(!n) return alert("Ponle un nombre");
+        if(!n) return alert("Indica un nombre");
         await _supabase.from('productos').insert({ nombre: n, stock: s, precio_costo: c, precio_venta: v });
         document.getElementById('new-nom').value = '';
         cargarInventario();
@@ -274,11 +284,11 @@
         const filtrados = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
         document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
             <tr>
-                <td>${v.fecha.substring(8,10)}</td>
+                <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
                 <td>${v.cliente_nombre}</td>
                 <td>$${v.total_usd.toFixed(2)}</td>
-                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}">${v.estado}</td>
-                <td><button onclick="borrarV(${v.id})" style="border:none; background:none; color:red; cursor:pointer;">✕</button></td>
+                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado.toUpperCase()}</strong></td>
+                <td><button onclick="borrarV(${v.id})" style="border:none; background:none; color:var(--danger); cursor:pointer;">✕</button></td>
             </tr>
         `).join('');
     }
@@ -290,9 +300,15 @@
     async function cargarCaja() {
         const mes = document.getElementById('filtro-caja').value;
         const { data } = await _supabase.from('ventas').select('*');
-        const mesData = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
-        document.getElementById('caja-total-usd').textContent = `$${mesData.reduce((a,b) => a+b.total_usd, 0).toFixed(2)}`;
-        document.getElementById('caja-total-bs').textContent = `Bs ${mesData.reduce((a,b) => a+b.total_bs, 0).toFixed(2)}`;
+        if(!data) return;
+        const mesData = data.filter(v => v.fecha.startsWith(mes));
+        const totalUsd = mesData.reduce((a,b) => a+b.total_usd, 0);
+        const totalBs = mesData.reduce((a,b) => a+b.total_bs, 0);
+        const pendientes = mesData.filter(v => v.estado === 'pendiente').reduce((a,b) => a+b.total_usd, 0);
+
+        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
+        document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
+        document.getElementById('caja-pendientes').textContent = `$${pendientes.toFixed(2)}`;
     }
 </script>
 </body>
