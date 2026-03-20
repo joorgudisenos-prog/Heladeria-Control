@@ -1,1 +1,27 @@
-
+{
+  "name": "Helados Cali",
+  "short_name": "CaliControl",
+  "description": "Control de inventario y ventas para Helados Cali",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://emoji.gg/assets/emoji/5111_ice_cream.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "https://emoji.gg/assets/emoji/5111_ice_cream.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://emoji.gg/assets/emoji/5111_ice_cream.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
