@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v3.1 - Redondeo y Colores</title>
+    <title>Cali Control v3.1 - Corregido</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -17,11 +17,14 @@
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        
+        /* BOTONES DE PRODUCTO */
         .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; transition: 0.2s; }
-        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
+        /* COLOR ROJO OSCURO CUANDO ESTÁ AGOTADO */
+        .product-btn.agotado { background: #811d23 !important; border-color: #63171b; color: #ffffff !important; cursor: not-allowed; opacity: 0.9; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        /* BOTONES DE STOCK CON COLOR */
         .btn-stock { width: 35px; height: 35px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
         .btn-plus { background: var(--success); }
         .btn-minus { background: var(--danger); }
@@ -83,7 +86,6 @@
 
     <div id="caja" class="section">
         <h2>Resumen de Saldo</h2>
-        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:20px; padding:10px; border-radius:8px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
             <div style="background:var(--primary); color:white; padding:20px; border-radius:12px;"><h3>Total Dólares</h3><p id="caja-total-usd" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
             <div style="background:var(--success); color:white; padding:20px; border-radius:12px;"><h3>Total Bolívares</h3><p id="caja-total-bs" style="font-size:1.8rem; font-weight:bold;">Bs 0.00</p></div>
@@ -102,8 +104,7 @@
 
     window.onload = async () => {
         const ahora = new Date();
-        document.getElementById('filtro-mes').value = ahora.toISOString().substring(0, 7);
-        document.getElementById('filtro-caja').value = ahora.toISOString().substring(0, 7);
+        if(document.getElementById('filtro-mes')) document.getElementById('filtro-mes').value = ahora.toISOString().substring(0, 7);
         await cargarTasaBD();
         actualizarTasaAutomatica();
         cargarPOS();
@@ -120,18 +121,15 @@
     }
 
     async function actualizarTasaAutomatica() {
-        const input = document.getElementById('tasa-val');
         const proxy = "https://api.allorigins.win/get?url=";
         const target = encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial");
-        
         try {
             const res = await fetch(proxy + target);
             const json = await res.json();
             const data = JSON.parse(json.contents);
             if(data.promedio) {
-                // REDONDEO A 2 DECIMALES
                 const redondeado = parseFloat(data.promedio).toFixed(2);
-                input.value = redondeado;
+                document.getElementById('tasa-val').value = redondeado;
                 await guardarTasaBD(redondeado);
             }
         } catch(e) { console.log("Error BCV"); }
@@ -155,25 +153,32 @@
     }
 
     function renderPOS() {
-        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
-            <div class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
-                <strong>${p.nombre}</strong><br>$${p.precio_venta.toFixed(2)}<br><small>${p.stock} disp.</small>
-            </div>
-        `).join('');
+        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => {
+            const agotado = p.stock <= 0;
+            return `
+                <div class="product-btn ${agotado ? 'agotado' : ''}" 
+                     onclick="${agotado ? '' : `addCart(${p.id})`}">
+                    <strong>${p.nombre}</strong><br>$${p.precio_venta.toFixed(2)}<br>
+                    <small>${p.stock} disp.</small>
+                </div>
+            `;
+        }).join('');
     }
 
     function addCart(id) {
         const p = productosLocal.find(x => x.id === id);
-        p.stock--;
-        carrito.push({...p});
-        renderPOS();
-        dibujarCarrito();
+        if (p.stock > 0) {
+            p.stock--; // Resta inmediata en pantalla
+            carrito.push({...p});
+            renderPOS(); // Actualiza para que si llega a 0 se ponga rojo
+            dibujarCarrito();
+        }
     }
 
     function dibujarCarrito() {
         const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
         let total = 0;
-        document.getElementById('carrito-items').innerHTML = carrito.map((item, i) => {
+        document.getElementById('carrito-items').innerHTML = carrito.map(item => {
             total += item.precio_venta;
             return `<div style="font-size:0.9rem; margin-bottom:5px;">${item.nombre} - $${item.precio_venta.toFixed(2)}</div>`;
         }).join('');
@@ -192,14 +197,13 @@
             total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
         });
 
-        if(error) { alert("Error: " + error.message); return; }
-
-        for (const item of carrito) {
-            await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 });
+        if(!error) {
+            for (const item of carrito) { 
+                await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); 
+            }
+            alert("Venta registrada");
+            limpiarCarrito();
         }
-
-        alert("Venta completada");
-        limpiarCarrito();
     }
 
     function limpiarCarrito() {
@@ -225,6 +229,7 @@
     }
 
     async function modStock(id, actual, cambio) {
+        if(actual + cambio < 0) return;
         await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
         cargarInventario();
     }
@@ -252,12 +257,10 @@
     }
 
     async function cargarCaja() {
-        const mes = document.getElementById('filtro-caja').value;
         const { data } = await _supabase.from('ventas').select('*');
         if(!data) return;
-        const mesData = data.filter(v => v.fecha.startsWith(mes));
-        document.getElementById('caja-total-usd').textContent = `$${mesData.reduce((a,b) => a+b.total_usd, 0).toFixed(2)}`;
-        document.getElementById('caja-total-bs').textContent = `Bs ${mesData.reduce((a,b) => a+b.total_bs, 0).toFixed(2)}`;
+        document.getElementById('caja-total-usd').textContent = `$${data.reduce((a,b) => a+b.total_usd, 0).toFixed(2)}`;
+        document.getElementById('caja-total-bs').textContent = `Bs ${data.reduce((a,b) => a+b.total_bs, 0).toFixed(2)}`;
     }
 </script>
 </body>
