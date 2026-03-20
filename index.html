@@ -3,184 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v5.3</title>
+    <title>Cali Control v3.1 - Redondeo y Colores</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --success: #3ab568; --danger: #ef4e57; --dark: #1e293b; --primary: #2563eb; --warning: #f59e0b; --text-dark: #1f5e3d; }
+        :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
-        nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; }
-        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
+        nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
+        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
         nav button.active { background: var(--primary); font-weight: bold; }
-        
-        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-        .section { display: none; } .section.active { display: block; }
-        
-        /* Botones de Helado */
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
-        .product-btn { 
-            background: var(--success); border: none; border-radius: 25px; padding: 15px; color: var(--text-dark);
-            display: flex; flex-direction: column; aspect-ratio: 2.1 / 1; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        /* Cambio visual para Agotado */
-        .product-btn.agotado { background: var(--danger) !important; color: #81292e !important; cursor: not-allowed; opacity: 0.7; }
-        .name-area { font-weight: 800; font-size: 1.15rem; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; text-align: center; }
-        .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; }
-
-        .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 80px; }
-        .btn-action { width: 100%; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-        
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+        .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section.active { display: block; }
+        .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; transition: 0.2s; }
+        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+        /* BOTONES DE STOCK CON COLOR */
+        .btn-stock { width: 35px; height: 35px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
+        .btn-plus { background: var(--success); }
+        .btn-minus { background: var(--danger); }
+        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
 <nav>
-    <button onclick="showTab('pos')" id="b-pos" class="active">🛒 Vender</button>
-    <button onclick="showTab('inv')" id="b-inv">📦 Inventario</button>
-    <button onclick="showTab('hist')" id="b-hist">📜 Historial</button>
+    <button onclick="showTab('pos')" id="btn-pos" class="active">🛒 Vender</button>
+    <button onclick="showTab('inventario')" id="btn-inventario">📦 Inventario</button>
+    <button onclick="showTab('historial')" id="btn-historial">📜 Historial</button>
+    <button onclick="showTab('caja')" id="btn-caja">💰 Caja / Saldo</button>
 </nav>
 
-<div id="pos" class="container section active">
-    <div id="lista-productos" class="products-grid"></div>
-    <div class="cart-panel">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Pedido</h3>
-            <div style="font-size:0.8rem; background:#e0f2fe; padding:5px; border-radius:5px;">
-                BCV: <input type="number" id="tasa-input" value="36.50" onchange="actualizarCarrito()" style="width:55px; border:none; background:transparent; font-weight:bold;">
+<div class="container">
+    <div id="pos" class="section active">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px;">
+            <h2>Punto de Venta</h2>
+            <div style="background:#e0f2fe; padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px;">
+                Tasa BCV: 
+                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:85px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
+                <button onclick="actualizarTasaAutomatica()" style="background:#2563eb; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem; font-weight:bold;">ACTUALIZAR</button>
             </div>
         </div>
-        <input type="text" id="cliente" placeholder="Nombre del Cliente" style="width:94%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;">
-        <div id="carrito-items" style="min-height: 50px;"></div>
-        <hr>
-        <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span></p>
-        <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary); font-size:1.2rem;">Bs 0.00</span></p>
-        
-        <button class="btn-action" style="background:var(--success)" onclick="finalizar('pagado')">CONFIRMAR PAGO</button>
-        <button class="btn-action" style="background:var(--warning)" onclick="finalizar('pendiente')">DEJAR PENDIENTE</button>
-        <button onclick="vaciar()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; margin-top:10px; cursor:pointer;">Vaciar Carrito</button>
+        <div class="pos-layout">
+            <div id="pos-lista" class="products-grid"></div>
+            <div class="cart-panel" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #ddd;">
+                <h3>Pedido Actual</h3>
+                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:90%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
+                <div id="carrito-items" style="min-height:80px; border-bottom:1px solid #ddd; margin-bottom:10px;"></div>
+                <div style="margin-bottom:15px;">
+                    <strong>Total USD: </strong><span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
+                    <strong>Total Bs: </strong><span id="total-bs" style="color:var(--primary); font-size:1.4rem;">Bs 0.00</span>
+                </div>
+                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">CONFIRMAR PAGO</button>
+                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">PAGO PENDIENTE</button>
+                <button onclick="limpiarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; cursor:pointer; margin-top:5px;">Vaciar Carrito</button>
+            </div>
+        </div>
     </div>
-</div>
 
-<div id="inv" class="container section" style="grid-template-columns: 1fr;">
-    <div class="cart-panel">
-        <h2>Inventario</h2>
+    <div id="inventario" class="section">
+        <h2>Gestión de Inventario</h2>
         <table id="tabla-inv">
-            <thead><tr><th>Helado</th><th>Stock</th><th>Costo</th><th>Venta</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Stock</th><th>Precio Venta</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
-</div>
 
-<div id="hist" class="container section" style="grid-template-columns: 1fr;">
-    <div class="cart-panel">
-        <h2>Historial de Ventas</h2>
-        <table id="tabla-historial">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total $</th><th>Estado</th></tr></thead>
+    <div id="historial" class="section">
+        <h2>Ventas Mensuales</h2>
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px; padding:5px; border-radius:5px;">
+        <table id="tabla-hist">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
+    </div>
+
+    <div id="caja" class="section">
+        <h2>Resumen de Saldo</h2>
+        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:20px; padding:10px; border-radius:8px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div style="background:var(--primary); color:white; padding:20px; border-radius:12px;"><h3>Total Dólares</h3><p id="caja-total-usd" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
+            <div style="background:var(--success); color:white; padding:20px; border-radius:12px;"><h3>Total Bolívares</h3><p id="caja-total-bs" style="font-size:1.8rem; font-weight:bold;">Bs 0.00</p></div>
+        </div>
     </div>
 </div>
 
 <script>
     const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let productos = [];
     let carrito = [];
+    let productosLocal = [];
 
-    async function cargarTodo() {
-        const { data: p } = await _supabase.from('productos').select('*').order('nombre');
-        productos = p || [];
-        const { data: c } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).maybeSingle();
-        if(c) document.getElementById('tasa-input').value = c.tasa_bcv;
-        renderPOS();
+    window.onload = async () => {
+        const ahora = new Date();
+        document.getElementById('filtro-mes').value = ahora.toISOString().substring(0, 7);
+        document.getElementById('filtro-caja').value = ahora.toISOString().substring(0, 7);
+        await cargarTasaBD();
+        actualizarTasaAutomatica();
+        cargarPOS();
+    };
+
+    async function cargarTasaBD() {
+        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
     }
 
-    function renderPOS() {
-        document.getElementById('lista-productos').innerHTML = productos.map(p => {
-            const agotado = p.stock <= 0;
-            return `
-                <button class="product-btn ${agotado ? 'agotado' : ''}" 
-                        onclick="${agotado ? '' : `agregar(${p.id})`}" ${agotado ? 'disabled' : ''}>
-                    <div class="name-area">${p.nombre}</div>
-                    <div class="info-area">
-                        <span>${p.stock} dips.</span>
-                        <span>$${p.precio_venta.toFixed(2)}</span>
-                    </div>
-                </button>`;
-        }).join('');
+    async function guardarTasaBD(valor) {
+        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
+        dibujarCarrito();
     }
 
-    function agregar(id) {
-        const p = productos.find(x => x.id === id);
-        if(p && p.stock > 0) {
-            p.stock--; // Resta visual inmediata para el bloqueo
-            carrito.push({...p});
-            renderPOS(); // Actualiza botones para bloquear si llegó a 0
-            actualizarCarrito();
-        }
-    }
-
-    function actualizarCarrito() {
-        const tasa = parseFloat(document.getElementById('tasa-input').value) || 0;
-        let total = 0;
-        document.getElementById('carrito-items').innerHTML = carrito.map(i => {
-            total += i.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span></div>`;
-        }).join('');
-        document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
-        document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
-    }
-
-    async function finalizar(estado) {
-        if(carrito.length === 0) return;
-        const total = carrito.reduce((a, b) => a + b.precio_venta, 0);
-        const tasa = parseFloat(document.getElementById('tasa-input').value);
+    async function actualizarTasaAutomatica() {
+        const input = document.getElementById('tasa-val');
+        const proxy = "https://api.allorigins.win/get?url=";
+        const target = encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial");
         
-        const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: document.getElementById('cliente').value || 'Gral',
-            productos_detalle: carrito.map(c => c.nombre).join(', '),
-            total_usd: total, tasa_momento: tasa, total_bs: total * tasa, estado: estado
-        });
-
-        if(!error) {
-            for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
-            alert("Venta registrada como " + estado);
-            carrito = []; document.getElementById('cliente').value = '';
-            await cargarTodo(); actualizarCarrito();
-        } else { alert("Error: " + error.message); }
-    }
-
-    async function cargarHistorial() {
-        const { data } = await _supabase.from('ventas').select('*').order('fecha', { ascending: false });
-        document.querySelector('#tabla-historial tbody').innerHTML = data.map(v => `
-            <tr>
-                <td>${new Date(v.fecha).toLocaleDateString()}</td>
-                <td>${v.cliente_nombre}</td>
-                <td style="font-size:0.8rem">${v.productos_detalle}</td>
-                <td>$${v.total_usd.toFixed(2)}</td>
-                <td style="color:${v.estado === 'pagado' ? 'green' : 'orange'}"><b>${v.estado.toUpperCase()}</b></td>
-            </tr>
-        `).join('');
-    }
-
-    function vaciar() {
-        carrito.forEach(c => { const p = productos.find(x => x.id === c.id); if(p) p.stock++; });
-        carrito = []; renderPOS(); actualizarCarrito();
+        try {
+            const res = await fetch(proxy + target);
+            const json = await res.json();
+            const data = JSON.parse(json.contents);
+            if(data.promedio) {
+                // REDONDEO A 2 DECIMALES
+                const redondeado = parseFloat(data.promedio).toFixed(2);
+                input.value = redondeado;
+                await guardarTasaBD(redondeado);
+            }
+        } catch(e) { console.log("Error BCV"); }
     }
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        document.getElementById('b-' + id).classList.add('active');
-        if(id === 'hist') cargarHistorial();
-        if(id === 'inv') cargarTodo(); // Recarga stock para inventario
+        document.getElementById('btn-' + id).classList.add('active');
+        if(id === 'pos') cargarPOS();
+        if(id === 'inventario') cargarInventario();
+        if(id === 'historial') cargarHistorial();
+        if(id === 'caja') cargarCaja();
     }
 
-    window.onload = cargarTodo;
+    async function cargarPOS() {
+        const { data } = await _supabase.from('productos').select('*').order('nombre');
+        productosLocal = data || [];
+        renderPOS();
+    }
+
+    function renderPOS() {
+        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
+            <div class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
+                <strong>${p.nombre}</strong><br>$${p.precio_venta.toFixed(2)}<br><small>${p.stock} disp.</small>
+            </div>
+        `).join('');
+    }
+
+    function addCart(id) {
+        const p = productosLocal.find(x => x.id === id);
+        p.stock--;
+        carrito.push({...p});
+        renderPOS();
+        dibujarCarrito();
+    }
+
+    function dibujarCarrito() {
+        const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
+        let total = 0;
+        document.getElementById('carrito-items').innerHTML = carrito.map((item, i) => {
+            total += item.precio_venta;
+            return `<div style="font-size:0.9rem; margin-bottom:5px;">${item.nombre} - $${item.precio_venta.toFixed(2)}</div>`;
+        }).join('');
+        document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
+        document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
+    }
+
+    async function finalizarVenta(estado) {
+        if(carrito.length === 0) return;
+        const totalUsd = carrito.reduce((acc, i) => acc + i.precio_venta, 0);
+        const tasa = parseFloat(document.getElementById('tasa-val').value);
+        
+        const { error } = await _supabase.from('ventas').insert({
+            cliente_nombre: document.getElementById('cliente-nombre').value || 'Gral',
+            productos_detalle: carrito.map(c => c.nombre).join(', '),
+            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
+        });
+
+        if(error) { alert("Error: " + error.message); return; }
+
+        for (const item of carrito) {
+            await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 });
+        }
+
+        alert("Venta completada");
+        limpiarCarrito();
+    }
+
+    function limpiarCarrito() {
+        carrito = [];
+        document.getElementById('cliente-nombre').value = '';
+        cargarPOS();
+        dibujarCarrito();
+    }
+
+    async function cargarInventario() {
+        const { data } = await _supabase.from('productos').select('*').order('nombre');
+        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
+            <tr>
+                <td><strong>${p.nombre}</strong></td>
+                <td>
+                    <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
+                    <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
+                    <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
+                </td>
+                <td>$${p.precio_venta.toFixed(2)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function modStock(id, actual, cambio) {
+        await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
+        cargarInventario();
+    }
+
+    async function cargarHistorial() {
+        const mes = document.getElementById('filtro-mes').value;
+        const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
+        const filtrados = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
+        document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
+            <tr>
+                <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
+                <td>${v.cliente_nombre}</td>
+                <td>$${v.total_usd.toFixed(2)}</td>
+                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado}</strong></td>
+                <td><button class="btn-del" onclick="borrarV(${v.id})">✕</button></td>
+            </tr>
+        `).join('');
+    }
+
+    async function borrarV(id) {
+        if(confirm("¿Borrar venta?")) {
+            await _supabase.from('ventas').delete().eq('id', id);
+            cargarHistorial();
+        }
+    }
+
+    async function cargarCaja() {
+        const mes = document.getElementById('filtro-caja').value;
+        const { data } = await _supabase.from('ventas').select('*');
+        if(!data) return;
+        const mesData = data.filter(v => v.fecha.startsWith(mes));
+        document.getElementById('caja-total-usd').textContent = `$${mesData.reduce((a,b) => a+b.total_usd, 0).toFixed(2)}`;
+        document.getElementById('caja-total-bs').textContent = `Bs ${mesData.reduce((a,b) => a+b.total_bs, 0).toFixed(2)}`;
+    }
 </script>
 </body>
 </html>
