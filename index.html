@@ -3,232 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.9 - Final Fix</title>
+    <title>Cali Control v5.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { 
-            --primary: #2563eb; --success: #3ab568; --danger: #ef4e57; --warning: #f59e0b; --dark: #1e293b; 
-            --text-dark: #1f5e3d; 
-            --text-danger-dark: #81292e; 
-        }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
+        :root { --success: #3ab568; --danger: #ef4e57; --dark: #1e293b; --primary: #2563eb; --text-dark: #1f5e3d; --text-danger-dark: #81292e; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; }
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; }
         nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
         nav button.active { background: var(--primary); font-weight: bold; }
-        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
-        .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .section.active { display: block; }
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        .section { display: none; } .section.active { display: block; }
         
-        /* Botones del Punto de Venta */
+        /* Botones Estilo Jorge */
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .product-btn { 
-            background-color: var(--success); border: none; border-radius: 25px; padding: 15px;
-            display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); aspect-ratio: 2 / 1; transition: 0.2s;
+            background: var(--success); border: none; border-radius: 25px; padding: 15px; color: var(--text-dark);
+            display: flex; flex-direction: column; aspect-ratio: 2.1 / 1; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        /* Color cuando se agota */
-        .product-btn.agotado { background-color: var(--danger) !important; cursor: not-allowed; opacity: 0.7; }
-        .product-btn .name-area { font-size: 1.1rem; font-weight: 800; color: var(--text-dark); text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
-        .product-btn.agotado .name-area { color: var(--text-danger-dark); }
-        .product-btn .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; font-size: 0.9rem; }
-        
-        .cart-panel { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #ddd; position: sticky; top: 80px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        
-        /* Botones de Inventario */
+        .product-btn.agotado { background: var(--danger) !important; color: var(--text-danger-dark) !important; cursor: not-allowed; opacity: 0.7; }
+        .name-area { font-weight: 800; font-size: 1.15rem; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; text-align: center; }
+        .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; }
+
+        .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: fit-content; position: sticky; top: 80px; }
+        .btn-pay { width: 100%; background: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
         .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; }
-        .inline-input { border: 1px solid #ccc; padding: 6px; border-radius: 6px; width: 100%; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <nav>
-    <button onclick="showTab('pos')" id="btn-pos" class="active">🛒 Vender</button>
-    <button onclick="showTab('inventario')" id="btn-inventario">📦 Inventario</button>
-    <button onclick="showTab('historial')" id="btn-historial">📜 Historial</button>
-    <button onclick="showTab('caja')" id="btn-caja">💰 Saldo</button>
+    <button onclick="showTab('pos')" id="b-pos" class="active">🛒 Vender</button>
+    <button onclick="showTab('inv')" id="b-inv">📦 Inventario</button>
 </nav>
 
-<div class="container">
-    <div id="pos" class="section active">
-        <div style="display:flex; justify-content: space-between; margin-bottom:15px;">
-            <h2>Punto de Venta</h2>
-            <div style="background:#e0f2fe; padding:8px; border-radius:8px;">
-                <small>BCV: </small><input type="number" id="tasa-val" step="0.01" style="width:70px; font-weight:bold; border:none; background:transparent;">
-            </div>
+<div id="pos" class="container section active">
+    <div id="lista-productos" class="products-grid"></div>
+    <div class="cart-panel">
+        <h3>Pedido Actual</h3>
+        <div id="carrito-items" style="min-height: 80px;"></div>
+        <div style="border-top: 2px solid #eee; padding-top: 10px; margin-top: 10px;">
+            <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span></p>
+            <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary); font-size:1.1rem;">Bs 0.00</span></p>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 20px;">
-            <div id="pos-lista" class="products-grid"></div>
-            <div class="cart-panel">
-                <h3>Pedido</h3>
-                <input type="text" id="cliente-nombre" placeholder="Cliente" class="inline-input" style="margin-bottom:10px;">
-                <div id="carrito-items" style="min-height:50px; margin-bottom:10px;"></div>
-                <div style="border-top:1px solid #ddd; padding-top:10px;">
-                    <strong>Total USD: </strong><span id="total-usd" style="color:var(--success)">$0.00</span><br>
-                    <strong>Total Bs: </strong><span id="total-bs" style="color:var(--primary)">Bs 0.00</span>
-                </div>
-                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-top:10px; cursor:pointer; font-weight:bold;">PAGAR</button>
-                <button onclick="limpiarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:5px; border-radius:8px; margin-top:10px; cursor:pointer;">Vaciar</button>
-            </div>
-        </div>
+        <button class="btn-pay" onclick="procesarVenta()">CONFIRMAR VENTA</button>
+        <button onclick="vaciarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; margin-top:10px; cursor:pointer;">Vaciar</button>
     </div>
+</div>
 
-    <div id="inventario" class="section">
-        <h2>Inventario</h2>
-        <table id="tabla-inv">
-            <thead><tr><th>Producto</th><th>Stock</th><th>Costo $</th><th>Venta $</th><th>Acción</th></tr></thead>
+<div id="inv" class="container section" style="grid-template-columns: 1fr;">
+    <div class="cart-panel">
+        <h2>Inventario (Ajustado a tu SQL)</h2>
+        <table id="tabla-inventario">
+            <thead><tr><th>Helado</th><th>Stock</th><th>Costo (SQL)</th><th>Venta</th><th>Acción</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
-    
-    <div id="historial" class="section"><h2>Historial</h2><table id="tabla-hist"><tbody></tbody></table></div>
-    <div id="caja" class="section"><h2>Saldo</h2><div id="stats-caja"></div></div>
 </div>
 
 <script>
     const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
-    const { createClient } = supabase;
-    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let productos = [];
     let carrito = [];
-    let productosLocal = [];
+    let tasaBcv = 36.50;
 
-    window.onload = async () => {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
-        cargarPOS();
-    };
+    async function inicializar() {
+        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).maybeSingle();
+        if (data) tasaBcv = data.tasa_bcv;
+        await cargarDatos();
+    }
+
+    async function cargarDatos() {
+        // Traemos los datos usando los nombres de tu SQL: nombre, stock, costo, precio_venta
+        const { data, error } = await _supabase.from('productos').select('id, nombre, stock, costo, precio_venta').order('nombre');
+        if (error) { console.error("Error Supabase:", error); return; }
+        productos = data || [];
+        renderPOS();
+    }
+
+    function renderPOS() {
+        document.getElementById('lista-productos').innerHTML = productos.map(p => {
+            const agotado = p.stock <= 0;
+            return `
+                <button class="product-btn ${agotado ? 'agotado' : ''}" 
+                        onclick="${agotado ? '' : `agregar(${p.id})`}"
+                        ${agotado ? 'disabled' : ''}>
+                    <div class="name-area">${p.nombre}</div>
+                    <div class="info-area">
+                        <span>${p.stock} dips.</span>
+                        <span>$${p.precio_venta.toFixed(2)}</span>
+                    </div>
+                </button>`;
+        }).join('');
+    }
+
+    function agregar(id) {
+        const p = productos.find(x => x.id === id);
+        if (p && p.stock > 0) {
+            p.stock--; // Resta visual inmediata
+            carrito.push({...p});
+            renderPOS(); // Bloquea botón si llega a 0
+            actualizarCarrito();
+        }
+    }
+
+    function actualizarCarrito() {
+        let total = 0;
+        document.getElementById('carrito-items').innerHTML = carrito.map(i => {
+            total += i.precio_venta;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
+                <span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span>
+            </div>`;
+        }).join('');
+        document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
+        document.getElementById('total-bs').textContent = `Bs ${(total * tasaBcv).toFixed(2)}`;
+    }
+
+    function vaciarCarrito() {
+        carrito.forEach(c => { const p = productos.find(x => x.id === c.id); if(p) p.stock++; });
+        carrito = [];
+        renderPOS();
+        actualizarCarrito();
+    }
+
+    async function procesarVenta() {
+        if(carrito.length === 0) return;
+        const total = carrito.reduce((a, b) => a + b.precio_venta, 0);
+        
+        const { error } = await _supabase.from('ventas').insert({
+            productos_detalle: carrito.map(c => c.nombre).join(', '),
+            total_usd: total,
+            tasa_momento: tasaBcv,
+            total_bs: total * tasaBcv,
+            estado: 'pagado'
+        });
+
+        if(!error) {
+            for (const item of carrito) { 
+                await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); 
+            }
+            alert("Venta procesada con éxito");
+            carrito = [];
+            await cargarDatos();
+            actualizarCarrito();
+        } else {
+            alert("Error al guardar: " + error.message);
+        }
+    }
+
+    async function cargarInventario() {
+        const { data } = await _supabase.from('productos').select('*').order('nombre');
+        document.querySelector('#tabla-inventario tbody').innerHTML = data.map(p => `
+            <tr>
+                <td><b>${p.nombre}</b></td>
+                <td>
+                    <button class="btn-stock" style="background:var(--danger)" onclick="modStock(${p.id},-1)">-</button>
+                    <span style="margin:0 10px; font-weight:bold;">${p.stock}</span>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modStock(${p.id},1)">+</button>
+                </td>
+                <td>$${(p.costo || 0).toFixed(2)}</td>
+                <td>$${p.precio_venta.toFixed(2)}</td>
+                <td><button onclick="eliminarP(${p.id})" style="background:none; border:none; cursor:pointer;">❌</button></td>
+            </tr>
+        `).join('');
+    }
+
+    async function modStock(id, n) {
+        await _supabase.rpc('increment_stock', { row_id: id, x: n });
+        cargarInventario();
+    }
 
     function showTab(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        document.getElementById('btn-' + id).classList.add('active');
-        if(id === 'pos') cargarPOS();
-        if(id === 'inventario') cargarInventario();
+        document.getElementById('b-' + id).classList.add('active');
+        if(id === 'inv') cargarInventario();
+        if(id === 'pos') renderPOS();
     }
 
-    async function cargarPOS() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        productosLocal = data || [];
-        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => {
-            const agotado = p.stock <= 0;
-            return `
-                <button class="product-btn ${agotado ? 'agotado' : ''}" 
-                        onclick="${agotado ? '' : `addCart(${p.id})`}"
-                        ${agotado ? 'disabled' : ''}>
-                    <div class="name-area">${p.nombre}</div>
-                    <div class="info-area"><span>${p.stock} dips.</span><span>$${p.precio_venta.toFixed(2)}</span></div>
-                </button>
-            `;
-        }).join('');
-    }
-
-    function addCart(id) {
-        const p = productosLocal.find(x => x.id === id);
-        if(p.stock > 0) {
-            p.stock--;
-            carrito.push({...p});
-            dibujarCarrito();
-            // Refrescamos los botones para que el que llegó a 0 se bloquee
-            actualizarBotonesDinamicos();
-        }
-    }
-
-    function actualizarBotonesDinamicos() {
-        // Esta función actualiza solo los números sin recargar toda la base de datos
-        const botones = document.querySelectorAll('.product-btn');
-        productosLocal.forEach((p, index) => {
-            const btn = botones[index];
-            if(btn) {
-                btn.querySelector('.info-area span').textContent = `${p.stock} dips.`;
-                if(p.stock <= 0) {
-                    btn.classList.add('agotado');
-                    btn.disabled = true;
-                }
-            }
-        });
-    }
-
-    function dibujarCarrito() {
-        const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
-        let total = 0;
-        document.getElementById('carrito-items').innerHTML = carrito.map(i => {
-            total += i.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span></div>`;
-        }).join('');
-        document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
-        document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
-    }
-
-    function limpiarCarrito() {
-        // Al vaciar, devolvemos el stock visual
-        carrito.forEach(c => {
-            const p = productosLocal.find(x => x.id === c.id);
-            if(p) p.stock++;
-        });
-        carrito = [];
-        cargarPOS();
-        dibujarCarrito();
-    }
-
-    async function cargarInventario() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
-            <tr>
-                <td><input type="text" class="inline-input" value="${p.nombre}" id="n-${p.id}"></td>
-                <td>
-                    <button class="btn-stock" style="background:var(--danger)" onclick="cambiarStock(${p.id},-1)">-</button>
-                    <span style="margin:0 5px">${p.stock}</span>
-                    <button class="btn-stock" style="background:var(--success)" onclick="cambiarStock(${p.id},1)">+</button>
-                </td>
-                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_costo || 0}" id="c-${p.id}"></td>
-                <td><input type="number" step="0.01" class="inline-input" value="${p.precio_venta}" id="v-${p.id}"></td>
-                <td><button onclick="guardarP(${p.id})" style="background:var(--success); color:white; border:none; padding:5px; border-radius:5px; cursor:pointer;">✓</button></td>
-            </tr>
-        `).join('');
-    }
-
-    async function cambiarStock(id, n) {
-        const p = productosLocal.find(x => x.id === id);
-        const nuevo = (p ? p.stock : 0) + n;
-        if(nuevo < 0) return;
-        await _supabase.from('productos').update({ stock: nuevo }).eq('id', id);
-        cargarInventario();
-    }
-
-    async function guardarP(id) {
-        const n = document.getElementById(`n-${id}`).value;
-        const c = parseFloat(document.getElementById(`c-${id}`).value);
-        const v = parseFloat(document.getElementById(`v-${id}`).value);
-        await _supabase.from('productos').update({ nombre: n, precio_costo: c, precio_venta: v }).eq('id', id);
-        alert("Guardado");
-        cargarInventario();
-    }
-
-    async function finalizarVenta(estado) {
-        if(carrito.length === 0) return;
-        const totalUsd = carrito.reduce((a, b) => a + b.precio_venta, 0);
-        const costoTotal = carrito.reduce((a, b) => a + (b.precio_costo || 0), 0);
-        const tasa = parseFloat(document.getElementById('tasa-val').value);
-        
-        const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: document.getElementById('cliente-nombre').value || 'Gral',
-            productos_detalle: carrito.map(c => c.nombre).join(', '),
-            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, costo_total_usd: costoTotal, estado: estado
-        });
-
-        if(!error) {
-            for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
-            carrito = [];
-            document.getElementById('cliente-nombre').value = '';
-            alert("Venta guardada");
-            cargarPOS();
-            dibujarCarrito();
-        } else { alert("Error SQL: " + error.message); }
-    }
+    window.onload = inicializar;
 </script>
 </body>
 </html>
