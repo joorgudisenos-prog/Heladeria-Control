@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v5.2 - Restaurado</title>
+    <title>Cali Control v5.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --success: #3ab568; --danger: #ef4e57; --dark: #1e293b; --primary: #2563eb; --warning: #f59e0b; --text-dark: #1f5e3d; }
@@ -11,6 +11,7 @@
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; }
         nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
         nav button.active { background: var(--primary); font-weight: bold; }
+        
         .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         .section { display: none; } .section.active { display: block; }
         
@@ -20,14 +21,16 @@
             background: var(--success); border: none; border-radius: 25px; padding: 15px; color: var(--text-dark);
             display: flex; flex-direction: column; aspect-ratio: 2.1 / 1; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        /* Cambio visual para Agotado */
         .product-btn.agotado { background: var(--danger) !important; color: #81292e !important; cursor: not-allowed; opacity: 0.7; }
         .name-area { font-weight: 800; font-size: 1.15rem; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; text-align: center; }
         .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; }
 
         .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 80px; }
         .btn-action { width: 100%; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        
         table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; }
-        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
     </style>
 </head>
 <body>
@@ -44,14 +47,14 @@
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h3>Pedido</h3>
             <div style="font-size:0.8rem; background:#e0f2fe; padding:5px; border-radius:5px;">
-                BCV: <input type="number" id="tasa-input" value="36.50" style="width:50px; border:none; background:transparent; font-weight:bold;">
+                BCV: <input type="number" id="tasa-input" value="36.50" onchange="actualizarCarrito()" style="width:55px; border:none; background:transparent; font-weight:bold;">
             </div>
         </div>
-        <input type="text" id="cliente" placeholder="Nombre del Cliente" style="width:100%; padding:8px; margin-bottom:10px; border-radius:5px; border:1px solid #ddd;">
-        <div id="carrito-items"></div>
+        <input type="text" id="cliente" placeholder="Nombre del Cliente" style="width:94%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;">
+        <div id="carrito-items" style="min-height: 50px;"></div>
         <hr>
-        <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success)">$0.00</span></p>
-        <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary)">Bs 0.00</span></p>
+        <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span></p>
+        <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary); font-size:1.2rem;">Bs 0.00</span></p>
         
         <button class="btn-action" style="background:var(--success)" onclick="finalizar('pagado')">CONFIRMAR PAGO</button>
         <button class="btn-action" style="background:var(--warning)" onclick="finalizar('pendiente')">DEJAR PENDIENTE</button>
@@ -60,11 +63,23 @@
 </div>
 
 <div id="inv" class="container section" style="grid-template-columns: 1fr;">
-    <div class="cart-panel"><h2>Inventario</h2><table id="tabla-inv"><thead><tr><th>Helado</th><th>Stock</th><th>Venta</th><th>Acciones</th></tr></thead><tbody></tbody></table></div>
+    <div class="cart-panel">
+        <h2>Inventario</h2>
+        <table id="tabla-inv">
+            <thead><tr><th>Helado</th><th>Stock</th><th>Costo</th><th>Venta</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
 
 <div id="hist" class="container section" style="grid-template-columns: 1fr;">
-    <div class="cart-panel"><h2>Historial de Ventas</h2><table id="tabla-historial"><thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total $</th><th>Estado</th></tr></thead><tbody></tbody></table></div>
+    <div class="cart-panel">
+        <h2>Historial de Ventas</h2>
+        <table id="tabla-historial">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total $</th><th>Estado</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -78,7 +93,7 @@
     async function cargarTodo() {
         const { data: p } = await _supabase.from('productos').select('*').order('nombre');
         productos = p || [];
-        const { data: c } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+        const { data: c } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).maybeSingle();
         if(c) document.getElementById('tasa-input').value = c.tasa_bcv;
         renderPOS();
     }
@@ -90,27 +105,30 @@
                 <button class="product-btn ${agotado ? 'agotado' : ''}" 
                         onclick="${agotado ? '' : `agregar(${p.id})`}" ${agotado ? 'disabled' : ''}>
                     <div class="name-area">${p.nombre}</div>
-                    <div class="info-area"><span>${p.stock} dips.</span><span>$${p.precio_venta.toFixed(2)}</span></div>
+                    <div class="info-area">
+                        <span>${p.stock} dips.</span>
+                        <span>$${p.precio_venta.toFixed(2)}</span>
+                    </div>
                 </button>`;
         }).join('');
     }
 
     function agregar(id) {
         const p = productos.find(x => x.id === id);
-        if(p.stock > 0) {
-            p.stock--;
+        if(p && p.stock > 0) {
+            p.stock--; // Resta visual inmediata para el bloqueo
             carrito.push({...p});
-            renderPOS();
+            renderPOS(); // Actualiza botones para bloquear si llegó a 0
             actualizarCarrito();
         }
     }
 
     function actualizarCarrito() {
-        const tasa = parseFloat(document.getElementById('tasa-input').value);
+        const tasa = parseFloat(document.getElementById('tasa-input').value) || 0;
         let total = 0;
         document.getElementById('carrito-items').innerHTML = carrito.map(i => {
             total += i.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; font-size:0.9rem;"><span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span></div>`;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span></div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
@@ -129,10 +147,10 @@
 
         if(!error) {
             for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
-            alert("Registrado como " + estado);
+            alert("Venta registrada como " + estado);
             carrito = []; document.getElementById('cliente').value = '';
             await cargarTodo(); actualizarCarrito();
-        }
+        } else { alert("Error: " + error.message); }
     }
 
     async function cargarHistorial() {
@@ -141,11 +159,16 @@
             <tr>
                 <td>${new Date(v.fecha).toLocaleDateString()}</td>
                 <td>${v.cliente_nombre}</td>
-                <td style="font-size:0.7rem">${v.productos_detalle}</td>
+                <td style="font-size:0.8rem">${v.productos_detalle}</td>
                 <td>$${v.total_usd.toFixed(2)}</td>
                 <td style="color:${v.estado === 'pagado' ? 'green' : 'orange'}"><b>${v.estado.toUpperCase()}</b></td>
             </tr>
         `).join('');
+    }
+
+    function vaciar() {
+        carrito.forEach(c => { const p = productos.find(x => x.id === c.id); if(p) p.stock++; });
+        carrito = []; renderPOS(); actualizarCarrito();
     }
 
     function showTab(id) {
@@ -154,7 +177,7 @@
         document.getElementById(id).classList.add('active');
         document.getElementById('b-' + id).classList.add('active');
         if(id === 'hist') cargarHistorial();
-        if(id === 'inv') cargarInv();
+        if(id === 'inv') cargarTodo(); // Recarga stock para inventario
     }
 
     window.onload = cargarTodo;
