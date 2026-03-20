@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v5.1</title>
+    <title>Cali Control v5.2 - Restaurado</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --success: #3ab568; --danger: #ef4e57; --dark: #1e293b; --primary: #2563eb; --text-dark: #1f5e3d; --text-danger-dark: #81292e; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; }
+        :root { --success: #3ab568; --danger: #ef4e57; --dark: #1e293b; --primary: #2563eb; --warning: #f59e0b; --text-dark: #1f5e3d; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
         nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; }
         nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
         nav button.active { background: var(--primary); font-weight: bold; }
         .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
         .section { display: none; } .section.active { display: block; }
         
-        /* Botones Estilo Jorge */
+        /* Botones de Helado */
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .product-btn { 
             background: var(--success); border: none; border-radius: 25px; padding: 15px; color: var(--text-dark);
             display: flex; flex-direction: column; aspect-ratio: 2.1 / 1; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .product-btn.agotado { background: var(--danger) !important; color: var(--text-danger-dark) !important; cursor: not-allowed; opacity: 0.7; }
+        .product-btn.agotado { background: var(--danger) !important; color: #81292e !important; cursor: not-allowed; opacity: 0.7; }
         .name-area { font-weight: 800; font-size: 1.15rem; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; text-align: center; }
         .info-area { display: flex; justify-content: space-between; color: white; font-weight: 700; }
 
-        .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: fit-content; position: sticky; top: 80px; }
-        .btn-pay { width: 100%; background: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-        .btn-stock { width: 30px; height: 30px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; }
+        .cart-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 80px; }
+        .btn-action { width: 100%; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
     </style>
 </head>
 <body>
@@ -36,30 +35,36 @@
 <nav>
     <button onclick="showTab('pos')" id="b-pos" class="active">🛒 Vender</button>
     <button onclick="showTab('inv')" id="b-inv">📦 Inventario</button>
+    <button onclick="showTab('hist')" id="b-hist">📜 Historial</button>
 </nav>
 
 <div id="pos" class="container section active">
     <div id="lista-productos" class="products-grid"></div>
     <div class="cart-panel">
-        <h3>Pedido Actual</h3>
-        <div id="carrito-items" style="min-height: 80px;"></div>
-        <div style="border-top: 2px solid #eee; padding-top: 10px; margin-top: 10px;">
-            <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span></p>
-            <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary); font-size:1.1rem;">Bs 0.00</span></p>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Pedido</h3>
+            <div style="font-size:0.8rem; background:#e0f2fe; padding:5px; border-radius:5px;">
+                BCV: <input type="number" id="tasa-input" value="36.50" style="width:50px; border:none; background:transparent; font-weight:bold;">
+            </div>
         </div>
-        <button class="btn-pay" onclick="procesarVenta()">CONFIRMAR VENTA</button>
-        <button onclick="vaciarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; margin-top:10px; cursor:pointer;">Vaciar</button>
+        <input type="text" id="cliente" placeholder="Nombre del Cliente" style="width:100%; padding:8px; margin-bottom:10px; border-radius:5px; border:1px solid #ddd;">
+        <div id="carrito-items"></div>
+        <hr>
+        <p><strong>Total USD:</strong> <span id="total-usd" style="color:var(--success)">$0.00</span></p>
+        <p><strong>Total Bs:</strong> <span id="total-bs" style="color:var(--primary)">Bs 0.00</span></p>
+        
+        <button class="btn-action" style="background:var(--success)" onclick="finalizar('pagado')">CONFIRMAR PAGO</button>
+        <button class="btn-action" style="background:var(--warning)" onclick="finalizar('pendiente')">DEJAR PENDIENTE</button>
+        <button onclick="vaciar()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; margin-top:10px; cursor:pointer;">Vaciar Carrito</button>
     </div>
 </div>
 
 <div id="inv" class="container section" style="grid-template-columns: 1fr;">
-    <div class="cart-panel">
-        <h2>Inventario (Ajustado a tu SQL)</h2>
-        <table id="tabla-inventario">
-            <thead><tr><th>Helado</th><th>Stock</th><th>Costo (SQL)</th><th>Venta</th><th>Acción</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
+    <div class="cart-panel"><h2>Inventario</h2><table id="tabla-inv"><thead><tr><th>Helado</th><th>Stock</th><th>Venta</th><th>Acciones</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<div id="hist" class="container section" style="grid-template-columns: 1fr;">
+    <div class="cart-panel"><h2>Historial de Ventas</h2><table id="tabla-historial"><thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total $</th><th>Estado</th></tr></thead><tbody></tbody></table></div>
 </div>
 
 <script>
@@ -69,19 +74,12 @@
 
     let productos = [];
     let carrito = [];
-    let tasaBcv = 36.50;
 
-    async function inicializar() {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).maybeSingle();
-        if (data) tasaBcv = data.tasa_bcv;
-        await cargarDatos();
-    }
-
-    async function cargarDatos() {
-        // Traemos los datos usando los nombres de tu SQL: nombre, stock, costo, precio_venta
-        const { data, error } = await _supabase.from('productos').select('id, nombre, stock, costo, precio_venta').order('nombre');
-        if (error) { console.error("Error Supabase:", error); return; }
-        productos = data || [];
+    async function cargarTodo() {
+        const { data: p } = await _supabase.from('productos').select('*').order('nombre');
+        productos = p || [];
+        const { data: c } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+        if(c) document.getElementById('tasa-input').value = c.tasa_bcv;
         renderPOS();
     }
 
@@ -90,91 +88,64 @@
             const agotado = p.stock <= 0;
             return `
                 <button class="product-btn ${agotado ? 'agotado' : ''}" 
-                        onclick="${agotado ? '' : `agregar(${p.id})`}"
-                        ${agotado ? 'disabled' : ''}>
+                        onclick="${agotado ? '' : `agregar(${p.id})`}" ${agotado ? 'disabled' : ''}>
                     <div class="name-area">${p.nombre}</div>
-                    <div class="info-area">
-                        <span>${p.stock} dips.</span>
-                        <span>$${p.precio_venta.toFixed(2)}</span>
-                    </div>
+                    <div class="info-area"><span>${p.stock} dips.</span><span>$${p.precio_venta.toFixed(2)}</span></div>
                 </button>`;
         }).join('');
     }
 
     function agregar(id) {
         const p = productos.find(x => x.id === id);
-        if (p && p.stock > 0) {
-            p.stock--; // Resta visual inmediata
+        if(p.stock > 0) {
+            p.stock--;
             carrito.push({...p});
-            renderPOS(); // Bloquea botón si llega a 0
+            renderPOS();
             actualizarCarrito();
         }
     }
 
     function actualizarCarrito() {
+        const tasa = parseFloat(document.getElementById('tasa-input').value);
         let total = 0;
         document.getElementById('carrito-items').innerHTML = carrito.map(i => {
             total += i.precio_venta;
-            return `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem;">
-                <span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span>
-            </div>`;
+            return `<div style="display:flex; justify-content:space-between; font-size:0.9rem;"><span>${i.nombre}</span><span>$${i.precio_venta.toFixed(2)}</span></div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
-        document.getElementById('total-bs').textContent = `Bs ${(total * tasaBcv).toFixed(2)}`;
+        document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
     }
 
-    function vaciarCarrito() {
-        carrito.forEach(c => { const p = productos.find(x => x.id === c.id); if(p) p.stock++; });
-        carrito = [];
-        renderPOS();
-        actualizarCarrito();
-    }
-
-    async function procesarVenta() {
+    async function finalizar(estado) {
         if(carrito.length === 0) return;
         const total = carrito.reduce((a, b) => a + b.precio_venta, 0);
+        const tasa = parseFloat(document.getElementById('tasa-input').value);
         
         const { error } = await _supabase.from('ventas').insert({
+            cliente_nombre: document.getElementById('cliente').value || 'Gral',
             productos_detalle: carrito.map(c => c.nombre).join(', '),
-            total_usd: total,
-            tasa_momento: tasaBcv,
-            total_bs: total * tasaBcv,
-            estado: 'pagado'
+            total_usd: total, tasa_momento: tasa, total_bs: total * tasa, estado: estado
         });
 
         if(!error) {
-            for (const item of carrito) { 
-                await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); 
-            }
-            alert("Venta procesada con éxito");
-            carrito = [];
-            await cargarDatos();
-            actualizarCarrito();
-        } else {
-            alert("Error al guardar: " + error.message);
+            for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
+            alert("Registrado como " + estado);
+            carrito = []; document.getElementById('cliente').value = '';
+            await cargarTodo(); actualizarCarrito();
         }
     }
 
-    async function cargarInventario() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        document.querySelector('#tabla-inventario tbody').innerHTML = data.map(p => `
+    async function cargarHistorial() {
+        const { data } = await _supabase.from('ventas').select('*').order('fecha', { ascending: false });
+        document.querySelector('#tabla-historial tbody').innerHTML = data.map(v => `
             <tr>
-                <td><b>${p.nombre}</b></td>
-                <td>
-                    <button class="btn-stock" style="background:var(--danger)" onclick="modStock(${p.id},-1)">-</button>
-                    <span style="margin:0 10px; font-weight:bold;">${p.stock}</span>
-                    <button class="btn-stock" style="background:var(--success)" onclick="modStock(${p.id},1)">+</button>
-                </td>
-                <td>$${(p.costo || 0).toFixed(2)}</td>
-                <td>$${p.precio_venta.toFixed(2)}</td>
-                <td><button onclick="eliminarP(${p.id})" style="background:none; border:none; cursor:pointer;">❌</button></td>
+                <td>${new Date(v.fecha).toLocaleDateString()}</td>
+                <td>${v.cliente_nombre}</td>
+                <td style="font-size:0.7rem">${v.productos_detalle}</td>
+                <td>$${v.total_usd.toFixed(2)}</td>
+                <td style="color:${v.estado === 'pagado' ? 'green' : 'orange'}"><b>${v.estado.toUpperCase()}</b></td>
             </tr>
         `).join('');
-    }
-
-    async function modStock(id, n) {
-        await _supabase.rpc('increment_stock', { row_id: id, x: n });
-        cargarInventario();
     }
 
     function showTab(id) {
@@ -182,11 +153,11 @@
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         document.getElementById('b-' + id).classList.add('active');
-        if(id === 'inv') cargarInventario();
-        if(id === 'pos') renderPOS();
+        if(id === 'hist') cargarHistorial();
+        if(id === 'inv') cargarInv();
     }
 
-    window.onload = inicializar;
+    window.onload = cargarTodo;
 </script>
 </body>
 </html>
