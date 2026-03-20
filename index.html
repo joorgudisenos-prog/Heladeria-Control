@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cali Control v4.3 - Helados Cali</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Helados Cali">
+    <meta name="theme-color" content="#2563eb">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
@@ -169,10 +174,9 @@
         <table id="tabla-inv">
             <thead>
                 <tr><th>Producto</th><th>Stock</th><th>Costo (USD)</th><th>Precio Venta (USD)</th><th>Ganancia x Unidad (USD)</th><th>Acciones</th>
-                </tr>
-            </thead>
+                 </thead>
             <tbody></tbody>
-         </table>
+          </table>
         <div class="text-muted" style="margin-top: 10px;">💡 Los costos y precios están en DÓLARES. La ganancia en Bolívares se calcula con la tasa del día de la venta.</div>
     </div>
 
@@ -182,10 +186,9 @@
         <table id="tabla-hist">
             <thead>
                 <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Ganancia Bs</th><th>Estado</th><th>Acciones</th>
-                </tr>
-            </thead>
+                 </thead>
             <tbody></tbody>
-         </table>
+          </table>
     </div>
 
     <div id="caja" class="section">
@@ -459,21 +462,21 @@
         document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => {
             const gananciaUnidadUsd = (p.precio_venta - (p.costo || 0)).toFixed(2);
             return `
-              <tr>
-                <td><input type="text" id="nombre-${p.id}" value="${p.nombre}" class="nombre-input" style="width:140px;" onchange="actualizarNombre(${p.id}, this.value)">\\
+               <tr>
+                <td><input type="text" id="nombre-${p.id}" value="${p.nombre}" class="nombre-input" style="width:140px;" onchange="actualizarNombre(${p.id}, this.value)"></td>
                 <td>
                     <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
                     <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
                     <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
-                  </td>
-                  <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
-                  <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
+                   </td>
+                   <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
+                   <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
                 <td style="color:var(--success); font-weight:bold;">$${gananciaUnidadUsd}</td>
                 <td>
                     <button class="btn-editar" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
                     <button class="btn-del" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
                 </td>
-               </tr>
+                </tr>
         `}).join('');
     }
     
@@ -574,7 +577,7 @@
         }
         
         document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
-            <tr>
+             <tr>
                 <td>${v.fecha ? new Date(v.fecha).toLocaleDateString() : 'Sin fecha'}</td>
                 <td>${v.cliente_nombre || 'Cliente General'}</td>
                 <td>$${Number(v.total_usd || 0).toFixed(2)}</td>
@@ -585,7 +588,7 @@
                     ${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
                     <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button>
                 </td>
-            </tr>
+             <\/tr>
         `).join('');
     }
     
@@ -680,6 +683,22 @@
         const totalPendienteUsd = ventasPendientes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
         document.getElementById('pendiente-usd').textContent = `$${totalPendienteUsd.toFixed(2)}`;
         document.getElementById('pendiente-bs-equivalente').textContent = `Bs ${(totalPendienteUsd * tasaActual).toFixed(2)}`;
+    }
+
+    // ========== REGISTRO DE PWA (SERVICE WORKER) ==========
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registrado con éxito');
+            })
+            .catch(error => {
+                console.log('❌ Error al registrar Service Worker:', error);
+            });
+    }
+
+    // Detectar si la app se abrió desde la pantalla de inicio
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.body.classList.add('pwa-mode');
     }
 </script>
 </body>
