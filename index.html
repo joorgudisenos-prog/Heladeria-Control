@@ -216,13 +216,26 @@
         `).join('');
     }
 
-    function addCart(id) {
-        const p = productosLocal.find(x => x.id === id);
-        p.stock--;
-        carrito.push({...p});
-        cargarPOS();
-        dibujarCarrito();
+function addCart(id) {
+    // 1. Buscamos el producto en la lista local
+    const p = productosLocal.find(x => x.id === id);
+    
+    // 2. ¡VALIDACIÓN CRÍTICA!: Si el stock es 0 o menos, no hacer nada
+    if (p.stock <= 0) {
+        alert("¡Se agotó este helado!");
+        return; 
     }
+
+    // 3. Restamos 1 al stock local inmediatamente
+    p.stock--;
+    
+    // 4. Lo añadimos al carrito
+    carrito.push({...p});
+    
+    // 5. Refrescamos la interfaz para que el botón cambie a rojo si llega a 0
+    cargarPOS(); 
+    dibujarCarrito();
+}
 
     function dibujarCarrito() {
         const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
