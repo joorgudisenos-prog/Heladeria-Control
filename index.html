@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v3.1 - Corregido</title>
+    <title>Cali Control v3.1 - Gestión Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #2563eb; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --dark: #1e293b; --light-green: #dcfce7; }
@@ -15,20 +15,13 @@
         .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .section.active { display: block; }
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-        @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        
-        /* BOTONES DE PRODUCTO */
-        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; transition: 0.2s; }
-        /* COLOR ROJO OSCURO CUANDO ESTÁ AGOTADO */
-        .product-btn.agotado { background: #811d23 !important; border-color: #63171b; color: #ffffff !important; cursor: not-allowed; opacity: 0.9; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        .btn-stock { width: 35px; height: 35px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
-        .btn-plus { background: var(--success); }
-        .btn-minus { background: var(--danger); }
-        .btn-del { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .product-btn { background: var(--light-green); border: 2px solid #bbf7d0; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; color: #166534; }
+        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+        .btn-stock { width: 30px; height: 30px; border: none; border-radius: 6px; color: white; cursor: pointer; }
+        .input-edit { width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -44,51 +37,59 @@
     <div id="pos" class="section active">
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px;">
             <h2>Punto de Venta</h2>
-            <div style="background:#e0f2fe; padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px;">
-                Tasa BCV: 
-                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:85px; font-weight:bold; border:none; background:transparent; color:var(--primary);">
-                <button onclick="actualizarTasaAutomatica()" style="background:#2563eb; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.75rem; font-weight:bold;">ACTUALIZAR</button>
+            <div style="background:#e0f2fe; padding:10px; border-radius:8px;">
+                Tasa: <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:70px; font-weight:bold;">
             </div>
         </div>
         <div class="pos-layout">
             <div id="pos-lista" class="products-grid"></div>
             <div class="cart-panel" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #ddd;">
-                <h3>Pedido Actual</h3>
-                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:90%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
-                <div id="carrito-items" style="min-height:80px; border-bottom:1px solid #ddd; margin-bottom:10px;"></div>
-                <div style="margin-bottom:15px;">
-                    <strong>Total USD: </strong><span id="total-usd" style="color:var(--success); font-size:1.2rem;">$0.00</span><br>
-                    <strong>Total Bs: </strong><span id="total-bs" style="color:var(--primary); font-size:1.4rem;">Bs 0.00</span>
-                </div>
-                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">CONFIRMAR PAGO</button>
-                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">PAGO PENDIENTE</button>
-                <button onclick="limpiarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; cursor:pointer; margin-top:5px;">Vaciar Carrito</button>
+                <input type="text" id="cliente-nombre" placeholder="Cliente" style="width:90%; padding:8px; margin-bottom:10px;">
+                <div id="carrito-items"></div>
+                <p><strong>Total USD:</strong> <span id="total-usd">$0.00</span></p>
+                <p><strong>Total Bs:</strong> <span id="total-bs">Bs 0.00</span></p>
+                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; padding:10px; margin-bottom:5px;">PAGADO</button>
+                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; padding:10px;">PENDIENTE</button>
             </div>
         </div>
     </div>
 
     <div id="inventario" class="section">
         <h2>Gestión de Inventario</h2>
+        <div style="background:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="text" id="new-nombre" placeholder="Nuevo Helado" style="flex:1; padding:8px;">
+            <input type="number" id="new-costo" placeholder="Costo $" style="width:80px; padding:8px;">
+            <input type="number" id="new-venta" placeholder="Venta $" style="width:80px; padding:8px;">
+            <button onclick="crearProducto()" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">+ AÑADIR</button>
+        </div>
         <table id="tabla-inv">
-            <thead><tr><th>Producto</th><th>Stock</th><th>Precio Venta</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Stock</th><th>Costo $</th><th>Venta $</th><th>Acción</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="historial" class="section">
-        <h2>Ventas Mensuales</h2>
-        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px; padding:5px; border-radius:5px;">
+        <h2>Ventas Realizadas</h2>
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="padding:8px; margin-bottom:10px;">
         <table id="tabla-hist">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs (Tasa)</th><th>Estado</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
 
     <div id="caja" class="section">
         <h2>Resumen de Saldo</h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-            <div style="background:var(--primary); color:white; padding:20px; border-radius:12px;"><h3>Total Dólares</h3><p id="caja-total-usd" style="font-size:1.8rem; font-weight:bold;">$0.00</p></div>
-            <div style="background:var(--success); color:white; padding:20px; border-radius:12px;"><h3>Total Bolívares</h3><p id="caja-total-bs" style="font-size:1.8rem; font-weight:bold;">Bs 0.00</p></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:20px;">
+            <div style="background:var(--success); color:white; padding:15px; border-radius:10px;">
+                <h3>Recibido en Bs</h3>
+                <p id="caja-total-bs" style="font-size:1.5rem; font-weight:bold;">Bs 0.00</p>
+                <small>Basado en ventas 'Pagadas'</small>
+            </div>
+            <div style="background:var(--warning); color:white; padding:15px; border-radius:10px;">
+                <h3>Por Cobrar ($)</h3>
+                <p id="caja-pendiente-usd" style="font-size:1.5rem; font-weight:bold;">$0.00</p>
+                <small>Ventas 'Pendientes'</small>
+            </div>
         </div>
     </div>
 </div>
@@ -96,91 +97,98 @@
 <script>
     const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
-    const { createClient } = supabase;
-    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let carrito = [];
     let productosLocal = [];
 
-    window.onload = async () => {
-        const ahora = new Date();
-        if(document.getElementById('filtro-mes')) document.getElementById('filtro-mes').value = ahora.toISOString().substring(0, 7);
-        await cargarTasaBD();
-        actualizarTasaAutomatica();
-        cargarPOS();
-    };
-
-    async function cargarTasaBD() {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
+    // --- FUNCIONES INVENTARIO ---
+    async function crearProducto() {
+        const nombre = document.getElementById('new-nombre').value;
+        const costo = parseFloat(document.getElementById('new-costo').value) || 0;
+        const venta = parseFloat(document.getElementById('new-venta').value) || 0;
+        if(!nombre) return alert("Ponle un nombre");
+        await _supabase.from('productos').insert({ nombre, costo, precio_venta: venta, stock: 0 });
+        cargarInventario();
+        document.getElementById('new-nombre').value = '';
     }
 
-    async function guardarTasaBD(valor) {
-        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
-        dibujarCarrito();
+    async function actualizarFila(id, campo, valor) {
+        let obj = {}; obj[campo] = valor;
+        await _supabase.from('productos').update(obj).eq('id', id);
     }
 
-    async function actualizarTasaAutomatica() {
-        const proxy = "https://api.allorigins.win/get?url=";
-        const target = encodeURIComponent("https://ve.dolarapi.com/v1/dolares/oficial");
-        try {
-            const res = await fetch(proxy + target);
-            const json = await res.json();
-            const data = JSON.parse(json.contents);
-            if(data.promedio) {
-                const redondeado = parseFloat(data.promedio).toFixed(2);
-                document.getElementById('tasa-val').value = redondeado;
-                await guardarTasaBD(redondeado);
-            }
-        } catch(e) { console.log("Error BCV"); }
+    async function cargarInventario() {
+        const { data } = await _supabase.from('productos').select('*').order('nombre');
+        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
+            <tr>
+                <td><input class="input-edit" style="width:120px" value="${p.nombre}" onchange="actualizarFila(${p.id}, 'nombre', this.value)"></td>
+                <td>
+                    <button class="btn-stock" style="background:var(--danger)" onclick="modStock(${p.id},${p.stock},-1)">-</button>
+                    <b>${p.stock}</b>
+                    <button class="btn-stock" style="background:var(--success)" onclick="modStock(${p.id},${p.stock},1)">+</button>
+                </td>
+                <td><input class="input-edit" type="number" value="${p.costo}" onchange="actualizarFila(${p.id}, 'costo', parseFloat(this.value))"></td>
+                <td><input class="input-edit" type="number" value="${p.precio_venta}" onchange="actualizarFila(${p.id}, 'precio_venta', parseFloat(this.value))"></td>
+                <td><button onclick="borrarP(${p.id})" style="border:none; color:red; cursor:pointer;">✕</button></td>
+            </tr>
+        `).join('');
     }
 
-    function showTab(id) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.getElementById('btn-' + id).classList.add('active');
-        if(id === 'pos') cargarPOS();
-        if(id === 'inventario') cargarInventario();
-        if(id === 'historial') cargarHistorial();
-        if(id === 'caja') cargarCaja();
+    // --- FUNCIONES HISTORIAL Y CAJA ---
+    async function cargarHistorial() {
+        const mes = document.getElementById('filtro-mes').value;
+        const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
+        const filtrados = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
+        
+        document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
+            <tr>
+                <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
+                <td>${v.cliente_nombre}</td>
+                <td>$${v.total_usd.toFixed(2)}</td>
+                <td>Bs ${(v.total_bs || 0).toFixed(2)} <small>(${v.tasa_momento})</small></td>
+                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado}</strong></td>
+            </tr>
+        `).join('');
     }
 
+    async function cargarCaja() {
+        const mes = document.getElementById('filtro-caja')?.value || new Date().toISOString().substring(0, 7);
+        const { data } = await _supabase.from('ventas').select('*');
+        if(!data) return;
+        
+        const pagados = data.filter(v => v.estado === 'pagado');
+        const pendientes = data.filter(v => v.estado === 'pendiente');
+
+        document.getElementById('caja-total-bs').textContent = `Bs ${pagados.reduce((a,b) => a + (b.total_bs || 0), 0).toFixed(2)}`;
+        document.getElementById('caja-pendiente-usd').textContent = `$${pendientes.reduce((a,b) => a + b.total_usd, 0).toFixed(2)}`;
+    }
+
+    // --- LÓGICA BASE (VENDER) ---
     async function cargarPOS() {
         const { data } = await _supabase.from('productos').select('*').order('nombre');
         productosLocal = data || [];
-        renderPOS();
-    }
-
-    function renderPOS() {
-        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => {
-            const agotado = p.stock <= 0;
-            return `
-                <div class="product-btn ${agotado ? 'agotado' : ''}" 
-                     onclick="${agotado ? '' : `addCart(${p.id})`}">
-                    <strong>${p.nombre}</strong><br>$${p.precio_venta.toFixed(2)}<br>
-                    <small>${p.stock} disp.</small>
-                </div>
-            `;
-        }).join('');
+        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
+            <div class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
+                <strong>${p.nombre}</strong><br>$${p.precio_venta.toFixed(2)}<br><small>${p.stock} disp.</small>
+            </div>
+        `).join('');
     }
 
     function addCart(id) {
         const p = productosLocal.find(x => x.id === id);
-        if (p.stock > 0) {
-            p.stock--; // Resta inmediata en pantalla
-            carrito.push({...p});
-            renderPOS(); // Actualiza para que si llega a 0 se ponga rojo
-            dibujarCarrito();
-        }
+        p.stock--;
+        carrito.push({...p});
+        cargarPOS();
+        dibujarCarrito();
     }
 
     function dibujarCarrito() {
         const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
         let total = 0;
-        document.getElementById('carrito-items').innerHTML = carrito.map(item => {
-            total += item.precio_venta;
-            return `<div style="font-size:0.9rem; margin-bottom:5px;">${item.nombre} - $${item.precio_venta.toFixed(2)}</div>`;
+        document.getElementById('carrito-items').innerHTML = carrito.map(i => {
+            total += i.precio_venta;
+            return `<div>${i.nombre} - $${i.precio_venta}</div>`;
         }).join('');
         document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
         document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
@@ -188,79 +196,38 @@
 
     async function finalizarVenta(estado) {
         if(carrito.length === 0) return;
-        const totalUsd = carrito.reduce((acc, i) => acc + i.precio_venta, 0);
+        const totalU = carrito.reduce((a, b) => a + b.precio_venta, 0);
         const tasa = parseFloat(document.getElementById('tasa-val').value);
         
-        const { error } = await _supabase.from('ventas').insert({
+        await _supabase.from('ventas').insert({
             cliente_nombre: document.getElementById('cliente-nombre').value || 'Gral',
             productos_detalle: carrito.map(c => c.nombre).join(', '),
-            total_usd: totalUsd, tasa_momento: tasa, total_bs: totalUsd * tasa, estado: estado
+            total_usd: totalU, tasa_momento: tasa, total_bs: totalU * tasa, estado: estado
         });
 
-        if(!error) {
-            for (const item of carrito) { 
-                await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); 
-            }
-            alert("Venta registrada");
-            limpiarCarrito();
-        }
+        for (const item of carrito) { await _supabase.rpc('increment_stock', { row_id: item.id, x: -1 }); }
+        carrito = []; cargarPOS(); dibujarCarrito();
     }
 
-    function limpiarCarrito() {
-        carrito = [];
-        document.getElementById('cliente-nombre').value = '';
+    function showTab(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('btn-' + id).classList.add('active');
+        if(id === 'inventario') cargarInventario();
+        if(id === 'historial') cargarHistorial();
+        if(id === 'caja') cargarCaja();
+    }
+
+    window.onload = async () => {
+        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+        if (data) document.getElementById('tasa-val').value = data.tasa_bcv;
         cargarPOS();
-        dibujarCarrito();
-    }
-
-    async function cargarInventario() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => `
-            <tr>
-                <td><strong>${p.nombre}</strong></td>
-                <td>
-                    <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
-                    <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
-                    <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
-                </td>
-                <td>$${p.precio_venta.toFixed(2)}</td>
-            </tr>
-        `).join('');
-    }
+    };
 
     async function modStock(id, actual, cambio) {
-        if(actual + cambio < 0) return;
         await _supabase.from('productos').update({ stock: actual + cambio }).eq('id', id);
         cargarInventario();
-    }
-
-    async function cargarHistorial() {
-        const mes = document.getElementById('filtro-mes').value;
-        const { data } = await _supabase.from('ventas').select('*').order('fecha', {ascending:false});
-        const filtrados = data ? data.filter(v => v.fecha.startsWith(mes)) : [];
-        document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
-            <tr>
-                <td>${v.fecha.substring(8,10)}/${v.fecha.substring(5,7)}</td>
-                <td>${v.cliente_nombre}</td>
-                <td>$${v.total_usd.toFixed(2)}</td>
-                <td style="color:${v.estado === 'pendiente' ? 'red' : 'green'}"><strong>${v.estado}</strong></td>
-                <td><button class="btn-del" onclick="borrarV(${v.id})">✕</button></td>
-            </tr>
-        `).join('');
-    }
-
-    async function borrarV(id) {
-        if(confirm("¿Borrar venta?")) {
-            await _supabase.from('ventas').delete().eq('id', id);
-            cargarHistorial();
-        }
-    }
-
-    async function cargarCaja() {
-        const { data } = await _supabase.from('ventas').select('*');
-        if(!data) return;
-        document.getElementById('caja-total-usd').textContent = `$${data.reduce((a,b) => a+b.total_usd, 0).toFixed(2)}`;
-        document.getElementById('caja-total-bs').textContent = `Bs ${data.reduce((a,b) => a+b.total_bs, 0).toFixed(2)}`;
     }
 </script>
 </body>
