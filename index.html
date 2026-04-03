@@ -270,35 +270,61 @@ async function actualizarTasaAutomatica() {
   btn.textContent = '⏳ Buscando...';
   btn.disabled = true;
 
+  // 1. Definimos las APIs con sus rutas exactas de datos
   const apis = [
-    { url: 'https://bcv-api.vercel.app/api/rates',            get: d => d.dollar?.rate },
-    { url: 'https://pydolarve.org/api/v1/dollar/',            get: d => d.monitors?.bcv?.price },
-    { url: 'https://ve.dolarapi.com/v1/dolares/oficial',      get: d => d.promedio },
+    { 
+      url: 'https://ve.dolarapi.com/v1/dolares/oficial', 
+      get: d => d.promedio || d.venta 
+    },
+    { 
+      url: 'https://pydolarve.org/api/v1/dollar?monitor=bcv', 
+      get: d => d.price || d.monitors?.bcv?.price 
+    },
+    { 
+      url: 'https://bcv-api.vercel.app/api/rates', 
+      get: d => d.dollar?.rate 
+    }
   ];
-  const proxy = 'https://api.allorigins.win/get?url=';
 
-  let tasa = null;
+  let tasaEncontrada = null;
+
   for (const api of apis) {
     try {
-      const res = await fetch(proxy + encodeURIComponent(api.url));
-      const json = await res.json();
-      const data = JSON.parse(json.contents);
+      // Intentamos fetch directo primero (muchas ya soportan CORS)
+      // Si falla, usamos el proxy de respaldo
+      let response;
+      try {
+        response = await fetch(api.url, { signal: AbortSignal.timeout(4000) });
+      } catch (e) {
+        response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(api.url)}`);
+      }
+
+      const json = await response.json();
+      
+      // AllOrigins envuelve el resultado en .contents, si no, es directo
+      const data = json.contents ? JSON.parse(json.contents) : json;
       const val = api.get(data);
-      if (val && !isNaN(val)) { tasa = parseFloat(val); break; }
-    } catch (_) { /* próxima API */ }
+
+      if (val && !isNaN(val) && val > 0) {
+        tasaEncontrada = parseFloat(val);
+        break; // Salimos del bucle si tenemos éxito
+      }
+    } catch (err) {
+      console.error(`Error con API ${api.url}:`, err);
+      continue; // Probar la siguiente
+    }
   }
 
   btn.textContent = '🔄 Actualizar';
   btn.disabled = false;
 
-  if (tasa) {
-    await onTasaChange(tasa.toFixed(2));
-    mostrarNotificacion(`✅ Tasa BCV actualizada: Bs ${tasa.toFixed(2)}`, 'success');
+  if (tasaEncontrada) {
+    await onTasaChange(tasaEncontrada.toFixed(2));
+    mostrarNotificacion(`✅ Tasa BCV actualizada: Bs ${tasaEncontrada.toFixed(2)}`, 'success');
   } else {
     const manual = prompt('⚠️ No se pudo obtener la tasa automáticamente.\nIngresa la tasa manualmente:', document.getElementById('tasa-val').value);
     if (manual && !isNaN(manual)) {
       await onTasaChange(parseFloat(manual).toFixed(2));
-      mostrarNotificacion(`💰 Tasa manual: Bs ${parseFloat(manual).toFixed(2)}`, 'warning');
     }
   }
 }
