@@ -230,7 +230,8 @@ window.onload = async () => {
   const mesActual = ahora.toISOString().substring(0, 7);
   document.getElementById('filtro-mes').value = mesActual;
   document.getElementById('filtro-caja').value = mesActual;
-  await cargarTasaBD();
+  await cargarTasaBD();        // carga la última tasa guardada
+  actualizarTasaAutomatica();  // luego busca la del día en segundo plano
   await cargarPOS();
 };
 

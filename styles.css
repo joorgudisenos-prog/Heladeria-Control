@@ -114,18 +114,18 @@ nav::-webkit-scrollbar { display: none; }
 }
 .tasa-banner input:focus { outline: none; }
 .btn-actualizar-tasa {
-  background: var(--primary);
-  color: white;
-  border: none;
+  background: transparent;
+  color: var(--gray-500);
+  border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
   font-family: var(--font);
   cursor: pointer;
   transition: var(--transition);
 }
-.btn-actualizar-tasa:hover { background: #1648c0; }
+.btn-actualizar-tasa:hover { background: var(--gray-100); color: var(--gray-700); }
 .tasa-time { font-size: 0.72rem; color: var(--gray-500); }
 
 /* ===== CONTAINER & SECTIONS ===== */
