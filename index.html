@@ -488,14 +488,16 @@ async function finalizarVenta(estado) {
   }
 
   mostrarNotificacion(estado === 'pagado' ? '✅ Venta completada' : '⏳ Registrado como pendiente', 'success');
-  limpiarCarrito();
+  limpiarCarrito(false);
   if (estado === 'pagado') cargarCaja();
 }
 
-function limpiarCarrito() {
-  for (const item of carrito) {
-    const prod = productosLocal.find(p => p.id === item.id);
-    if (prod) prod.stock += item.cantidad;
+function limpiarCarrito(revertirStock = true) {
+  if (revertirStock) {
+    for (const item of carrito) {
+      const prod = productosLocal.find(p => p.id === item.id);
+      if (prod) prod.stock += item.cantidad;
+    }
   }
   carrito = [];
   document.getElementById('cliente-nombre').value = '';
