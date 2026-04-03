@@ -1,705 +1,741 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cali Control v4.3 - Helados Cali</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Helados Cali">
-    <meta name="theme-color" content="#2563eb">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root { 
-            --primary: #2563eb; 
-            --success: #22c55e; 
-            --warning: #f59e0b; 
-            --danger: #ef4444; 
-            --dark: #1e293b; 
-            --light-green: #dcfce7;
-            --info: #06b6d4;
-        }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f5f9; padding-bottom: 50px; }
-        nav { background: var(--dark); padding: 12px; display: flex; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
-        nav button { background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: 0.2s; }
-        nav button:hover { background: rgba(255,255,255,0.2); }
-        nav button.active { background: var(--primary); font-weight: bold; }
-        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
-        .section { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .section.active { display: block; }
-        .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-        @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-        .product-btn { 
-            background: var(--light-green); 
-            border: 2px solid #bbf7d0; 
-            padding: 15px; 
-            border-radius: 12px; 
-            text-align: center; 
-            cursor: pointer; 
-            color: #166534; 
-            transition: 0.2s;
-            font-weight: 500;
-        }
-        .product-btn:hover:not(.agotado) { transform: scale(1.02); background: #bbf7d0; }
-        .product-btn.agotado { background: #fee2e2; border-color: #fca5a5; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-        th { background: #f8fafc; font-weight: 600; }
-        .btn-stock { width: 35px; height: 35px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 1.2rem; transition: 0.1s; }
-        .btn-stock:hover { opacity: 0.8; }
-        .btn-plus { background: var(--success); }
-        .btn-minus { background: var(--danger); }
-        .btn-del { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-        .btn-pagar { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-right: 5px; }
-        .btn-editar { background: var(--warning); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; margin-left: 5px; }
-        .btn-agregar { background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 15px; font-size: 1rem; }
-        .card-stats { background: linear-gradient(135deg, var(--primary), #1e40af); color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid var(--primary); }
-        .stat-card h4 { margin: 0 0 10px 0; color: var(--dark); }
-        .stat-card .value { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
-        .badge-pendiente { background: var(--warning); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
-        .badge-pagado { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
-        input, .editable-input { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100px; text-align: center; }
-        .nombre-input { width: 140px; text-align: left; }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 450px;
-        }
-        .modal-content input, .modal-content select {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-sizing: border-box;
-        }
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .modal-buttons button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .btn-confirmar { background: var(--success); color: white; }
-        .btn-cancelar { background: #94a3b8; color: white; }
-        .acciones-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .text-muted { color: #64748b; font-size: 0.7rem; margin-top: 4px; }
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: bold;
-            z-index: 9999;
-            transition: opacity 0.3s;
-            opacity: 0;
-            pointer-events: none;
-            font-size: 0.9rem;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cali Control v5 - Helados Cali</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Helados Cali">
+  <meta name="theme-color" content="#1a56db">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
-    <button onclick="showTab('pos')" id="btn-pos" class="active">🛒 Vender</button>
-    <button onclick="showTab('inventario')" id="btn-inventario">📦 Inventario</button>
-    <button onclick="showTab('historial')" id="btn-historial">📜 Historial</button>
-    <button onclick="showTab('caja')" id="btn-caja">💰 Caja / Saldo</button>
+  <button class="nav-btn active" onclick="showTab('pos')" id="btn-pos">🛒 Vender</button>
+  <button class="nav-btn" onclick="showTab('inventario')" id="btn-inventario">📦 Inventario</button>
+  <button class="nav-btn" onclick="showTab('historial')" id="btn-historial">📜 Historial</button>
+  <button class="nav-btn" onclick="showTab('caja')" id="btn-caja">💰 Caja</button>
 </nav>
 
+<!-- TASA BANNER -->
+<div class="tasa-banner">
+  <span>💵 Tasa BCV:</span>
+  <input type="number" id="tasa-val" step="0.01" onchange="onTasaChange(this.value)">
+  <span class="tasa-value" id="tasa-display">—</span>
+  <span class="tasa-time" id="tasa-time"></span>
+  <button class="btn-actualizar-tasa" onclick="actualizarTasaAutomatica()">🔄 Actualizar</button>
+</div>
+
 <div class="container">
-    <div id="pos" class="section active">
-        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-            <h2>🍦 Punto de Venta</h2>
-            <div style="background:#e0f2fe; padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="font-weight:bold;">💵 Tasa BCV:</span>
-                <input type="number" id="tasa-val" step="0.01" onchange="guardarTasaBD(this.value)" style="width:100px; font-weight:bold; border:2px solid var(--primary); border-radius:6px; padding:5px;">
-                <button onclick="actualizarTasaAutomatica()" style="background:#2563eb; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold;">🔄 ACTUALIZAR</button>
-            </div>
+
+  <!-- ===== POS ===== -->
+  <div id="pos" class="section active">
+    <div class="pos-layout">
+      <!-- Productos -->
+      <div>
+        <div class="section-header">
+          <h2>🍦 Punto de Venta</h2>
         </div>
-        <div class="pos-layout">
-            <div id="pos-lista" class="products-grid"></div>
-            <div class="cart-panel" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #ddd;">
-                <h3>🛍️ Pedido Actual</h3>
-                <input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px; box-sizing:border-box;">
-                <div id="carrito-items" style="min-height:80px; border-bottom:1px solid #ddd; margin-bottom:10px; max-height:200px; overflow-y:auto;"></div>
-                <div style="margin-bottom:15px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <strong>Total USD:</strong>
-                        <span id="total-usd" style="color:var(--success); font-size:1.2rem; font-weight:bold;">$0.00</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong>Total Bs:</strong>
-                        <span id="total-bs" style="color:var(--primary); font-size:1.4rem; font-weight:bold;">Bs 0.00</span>
-                    </div>
-                </div>
-                <button onclick="finalizarVenta('pagado')" style="width:100%; background:var(--success); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">✅ CONFIRMAR PAGO</button>
-                <button onclick="finalizarVenta('pendiente')" style="width:100%; background:var(--warning); color:white; border:none; padding:12px; border-radius:8px; margin-bottom:8px; cursor:pointer; font-weight:bold;">⏳ PAGO PENDIENTE</button>
-                <button onclick="limpiarCarrito()" style="width:100%; background:#94a3b8; color:white; border:none; padding:8px; border-radius:8px; cursor:pointer;">🗑️ Vaciar Carrito</button>
-            </div>
+        <div id="pos-lista" class="products-grid"></div>
+      </div>
+
+      <!-- Carrito -->
+      <div class="cart-panel">
+        <h3>🛍️ Pedido Actual</h3>
+        <input type="text" id="cliente-nombre" class="cart-input" placeholder="👤 Nombre del cliente *" required>
+        <input type="text" id="referencia-pago" class="cart-input" placeholder="📋 Referencia de pago *" required>
+        <div id="carrito-items" class="carrito-items">
+          <div class="carrito-empty">No hay productos en el carrito</div>
         </div>
+        <div class="cart-totals">
+          <div class="cart-total-row">
+            <label>Total USD</label>
+            <span class="cart-total-usd" id="total-usd">$0.00</span>
+          </div>
+          <div class="cart-total-row">
+            <label>Total Bs (tasa hoy)</label>
+            <span class="cart-total-bs" id="total-bs">Bs 0.00</span>
+          </div>
+        </div>
+        <button class="btn-venta btn-venta-pago" onclick="finalizarVenta('pagado')">✅ CONFIRMAR PAGO</button>
+        <button class="btn-venta btn-venta-pendiente" onclick="finalizarVenta('pendiente')">⏳ PAGO PENDIENTE</button>
+        <button class="btn-venta btn-venta-limpiar" onclick="limpiarCarrito()">🗑️ Vaciar carrito</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INVENTARIO ===== -->
+  <div id="inventario" class="section">
+    <div class="section-header">
+      <h2>📦 Gestión de Inventario</h2>
+      <button class="btn btn-primary btn-agregar" onclick="abrirModalAgregar()">➕ Añadir helado</button>
+    </div>
+    <div class="table-wrap">
+      <table id="tabla-inv">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Stock</th>
+            <th>Costo (USD)</th>
+            <th>Precio Venta (USD)</th>
+            <th>Ganancia/ud</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="text-muted">💡 Costos y precios en USD. La ganancia en Bs se calcula con la tasa del día de la venta.</p>
+  </div>
+
+  <!-- ===== HISTORIAL ===== -->
+  <div id="historial" class="section">
+    <div class="section-header">
+      <h2>📜 Historial de Ventas</h2>
+      <div class="cierre-btn-wrap">
+        <button class="btn btn-primary" onclick="exportarPDF()">📄 Exportar PDF</button>
+        <button class="btn btn-danger" onclick="cierreMes()">🗂️ Cierre de Mes</button>
+      </div>
     </div>
 
-    <div id="inventario" class="section">
-        <div class="acciones-header">
-            <h2>📦 Gestión de Inventario</h2>
-            <button class="btn-agregar" onclick="abrirModalAgregar()">➕ AÑADIR NUEVO HELADO</button>
-        </div>
-        <table id="tabla-inv">
-            <thead>
-                <tr><th>Producto</th><th>Stock</th><th>Costo (USD)</th><th>Precio Venta (USD)</th><th>Ganancia x Unidad (USD)</th><th>Acciones</th>
-                 </thead>
-            <tbody></tbody>
-          </table>
-        <div class="text-muted" style="margin-top: 10px;">💡 Los costos y precios están en DÓLARES. La ganancia en Bolívares se calcula con la tasa del día de la venta.</div>
+    <!-- Cobros pendientes -->
+    <div class="pendientes-section" id="pendientes-section">
+      <h3>⏳ Cobros Pendientes</h3>
+      <div id="pendientes-lista"></div>
     </div>
 
-    <div id="historial" class="section">
-        <h2>📜 Historial de Ventas</h2>
-        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px; padding:8px; border-radius:5px; border:1px solid #ccc;">
-        <table id="tabla-hist">
-            <thead>
-                <tr><th>Fecha</th><th>Cliente</th><th>Total $</th><th>Total Bs</th><th>Ganancia Bs</th><th>Estado</th><th>Acciones</th>
-                 </thead>
-            <tbody></tbody>
-          </table>
+    <!-- Print header (solo aparece al imprimir) -->
+    <div class="print-header" id="print-header">
+      <h1>🍦 Helados Cali — Cierre de Mes</h1>
+      <p id="print-mes-label"></p>
     </div>
 
-    <div id="caja" class="section">
-        <h2>💰 Resumen de Caja</h2>
-        <input type="month" id="filtro-caja" onchange="cargarCaja()" style="margin-bottom:20px; padding:10px; border-radius:8px; border:1px solid #ccc;">
-        
-        <div class="stats-grid">
-            <div class="stat-card"><h4>💰 Total Vendido en Dólares</h4><div class="value" id="caja-total-usd">$0.00</div><small>Suma de todas las ventas en USD</small></div>
-            <div class="stat-card"><h4>💵 Total Vendido en Bolívares</h4><div class="value" id="caja-total-bs">Bs 0.00</div><small>Suma histórica con tasa de cada venta</small></div>
-            <div class="stat-card"><h4>📈 Total Ganancia (Bs)</h4><div class="value" id="caja-ganancia-bs">Bs 0.00</div><small>(Precio Venta - Costo) × Tasa del día</small></div>
-            <div class="stat-card"><h4>💲 Ganancia en Dólares (tasa actual)</h4><div class="value" id="caja-ganancia-usd">$0.00</div><small>Ganancia en Bs ÷ Tasa actual: <span id="tasa-actual-ganancia">0</span> Bs/$</small></div>
-        </div>
-        
-        <div class="card-stats">
-            <h3>⏳ Pagos Pendientes</h3>
-            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                <div><strong>Total Pendiente en USD:</strong><br><span style="font-size: 1.5rem;" id="pendiente-usd">$0.00</span></div>
-                <div><strong>Equivalente en Bs (tasa actual):</strong><br><span style="font-size: 1.5rem;" id="pendiente-bs-equivalente">Bs 0.00</span></div>
-            </div>
-            <small style="display: block; margin-top: 10px;">⚠️ Los pagos pendientes se confirman desde la sección Historial</small>
-        </div>
+    <input type="month" id="filtro-mes" class="filtro-mes" onchange="cargarHistorial()">
+    <div class="table-wrap">
+      <table id="tabla-hist">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Referencia</th>
+            <th>Productos</th>
+            <th>Total $</th>
+            <th>Total Bs</th>
+            <th>Ganancia Bs</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
-</div>
+  </div>
 
-<!-- Modal para agregar nuevo helado -->
+  <!-- ===== CAJA ===== -->
+  <div id="caja" class="section">
+    <div class="section-header">
+      <h2>💰 Resumen de Caja</h2>
+    </div>
+    <input type="month" id="filtro-caja" class="filtro-mes" onchange="cargarCaja()">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h4>💰 Total Vendido (USD)</h4>
+        <div class="value" id="caja-total-usd">$0.00</div>
+        <small>Ventas confirmadas en USD</small>
+      </div>
+      <div class="stat-card">
+        <h4>💵 Total Vendido (Bs)</h4>
+        <div class="value" id="caja-total-bs">Bs 0.00</div>
+        <small>Con tasa histórica de cada venta</small>
+      </div>
+      <div class="stat-card success">
+        <h4>📈 Ganancia (Bs)</h4>
+        <div class="value" id="caja-ganancia-bs">Bs 0.00</div>
+        <small>(Precio - Costo) × Tasa del día</small>
+      </div>
+      <div class="stat-card success">
+        <h4>💲 Ganancia (USD)</h4>
+        <div class="value" id="caja-ganancia-usd">$0.00</div>
+        <small>Ganancia Bs ÷ tasa: <span id="tasa-actual-ganancia">0</span></small>
+      </div>
+    </div>
+
+    <div class="pendientes-caja">
+      <h3>⏳ Pagos Pendientes (no incluidos arriba)</h3>
+      <div class="pendientes-caja-row">
+        <div class="pendientes-caja-item">
+          <strong>Total pendiente (USD)</strong>
+          <span id="pendiente-usd">$0.00</span>
+        </div>
+        <div class="pendientes-caja-item">
+          <strong>Equivalente Bs (tasa hoy)</strong>
+          <span id="pendiente-bs-equivalente">Bs 0.00</span>
+        </div>
+      </div>
+      <small>⚠️ Los pendientes se confirman desde la sección Historial y se registran en el mes de cobro</small>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Modal agregar helado -->
 <div id="modal-agregar" class="modal">
-    <div class="modal-content">
-        <h3>🍨 Añadir Nuevo Helado</h3>
-        <input type="text" id="nuevo-nombre" placeholder="Nombre del helado">
-        <input type="number" id="nuevo-stock" placeholder="Stock inicial" value="0">
-        <input type="number" id="nuevo-costo" placeholder="Costo (USD)" step="0.01" value="0">
-        <input type="number" id="nuevo-precio" placeholder="Precio venta (USD)" step="0.01" value="0">
-        <div class="modal-buttons">
-            <button class="btn-confirmar" onclick="agregarHelado()">✅ Agregar</button>
-            <button class="btn-cancelar" onclick="cerrarModal()">❌ Cancelar</button>
-        </div>
+  <div class="modal-content">
+    <h3>🍨 Añadir Nuevo Helado</h3>
+    <div class="modal-field">
+      <label>Nombre del helado</label>
+      <input type="text" id="nuevo-nombre" placeholder="Ej: Helado de Fresa">
     </div>
+    <div class="modal-field">
+      <label>Stock inicial</label>
+      <input type="number" id="nuevo-stock" value="0" min="0">
+    </div>
+    <div class="modal-field">
+      <label>Costo (USD)</label>
+      <input type="number" id="nuevo-costo" placeholder="0.00" step="0.01" value="0">
+    </div>
+    <div class="modal-field">
+      <label>Precio de venta (USD)</label>
+      <input type="number" id="nuevo-precio" placeholder="0.00" step="0.01" value="0">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-confirmar" onclick="agregarHelado()">✅ Agregar</button>
+      <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
 </div>
+
+<!-- Toast -->
+<div id="toast-notification" class="toast"></div>
 
 <script>
-    const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
-    const { createClient } = supabase;
-    const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// ===== SUPABASE =====
+const SUPABASE_URL = 'https://osdvdutepsfpxfijeatd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zZHZkdXRlcHNmcHhmaWplYXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzQ0MzgsImV4cCI6MjA4OTM1MDQzOH0.OWUMwz0LKvP2ifedGVjErOkGuKXvCxF6lMnyn6Nebks';
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let carrito = [];
-    let productosLocal = [];
+let carrito = [];
+let productosLocal = [];
+let tasaActual = 0;
 
-    window.onload = async () => {
-        const ahora = new Date();
-        const mesActual = ahora.toISOString().substring(0, 7);
-        document.getElementById('filtro-mes').value = mesActual;
-        document.getElementById('filtro-caja').value = mesActual;
-        await cargarTasaBD();
-        await cargarPOS();
-    };
+// ===== INIT =====
+window.onload = async () => {
+  const ahora = new Date();
+  const mesActual = ahora.toISOString().substring(0, 7);
+  document.getElementById('filtro-mes').value = mesActual;
+  document.getElementById('filtro-caja').value = mesActual;
+  await cargarTasaBD();
+  await cargarPOS();
+};
 
-    async function cargarTasaBD() {
-        const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
-        if (data && data.tasa_bcv) {
-            document.getElementById('tasa-val').value = data.tasa_bcv;
-        } else {
-            document.getElementById('tasa-val').value = '50.00';
-            await guardarTasaBD(50.00);
-        }
-    }
+// ===== TASA BCV =====
+async function cargarTasaBD() {
+  const { data } = await _supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single();
+  if (data && data.tasa_bcv) {
+    setTasa(data.tasa_bcv);
+  } else {
+    setTasa(50.00);
+    await _supabase.from('configuracion').update({ tasa_bcv: 50.00 }).eq('id', 1);
+  }
+}
 
-    async function guardarTasaBD(valor) {
-        await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
-        dibujarCarrito();
-        if (document.getElementById('caja').classList.contains('active')) cargarCaja();
-    }
+function setTasa(valor) {
+  tasaActual = parseFloat(valor);
+  document.getElementById('tasa-val').value = tasaActual.toFixed(2);
+  document.getElementById('tasa-display').textContent = `Bs ${tasaActual.toFixed(2)}`;
+  const now = new Date();
+  document.getElementById('tasa-time').textContent =
+    `Act. ${now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
+  dibujarCarrito();
+  actualizarPreciosBs();
+  if (document.getElementById('caja').classList.contains('active')) cargarCaja();
+  actualizarPendientesLive();
+}
 
-    async function actualizarTasaAutomatica() {
-        const input = document.getElementById('tasa-val');
-        const btnActualizar = event?.target || document.querySelector('#tasa-val + button');
-        
-        if (btnActualizar) {
-            btnActualizar.innerText = '🔄 Buscando...';
-            btnActualizar.disabled = true;
-        }
-        
-        try {
-            const proxy = 'https://api.allorigins.win/get?url=';
-            const url = encodeURIComponent('https://ve.dolarapi.com/v1/dolares/oficial');
-            
-            console.log('Buscando tasa BCV...');
-            const response = await fetch(proxy + url);
-            const json = await response.json();
-            
-            if (json.contents) {
-                const data = JSON.parse(json.contents);
-                console.log('Respuesta:', data);
-                
-                if (data && data.promedio) {
-                    const tasa = parseFloat(data.promedio).toFixed(2);
-                    input.value = tasa;
-                    await guardarTasaBD(tasa);
-                    mostrarNotificacion(`✅ Tasa BCV: Bs ${tasa}`, 'success');
-                } else {
-                    throw new Error('No se encontró el campo promedio');
-                }
-            } else {
-                throw new Error('No se pudo obtener la tasa');
-            }
-            
-        } catch (error) {
-            console.error('Error:', error);
-            
-            const tasaManual = prompt(
-                '⚠️ No se pudo obtener la tasa automática.\n' +
-                'Puedes ingresarla manualmente (ejemplo: 56.78):',
-                input.value || '50.00'
-            );
-            
-            if (tasaManual && !isNaN(tasaManual)) {
-                const tasa = parseFloat(tasaManual).toFixed(2);
-                input.value = tasa;
-                await guardarTasaBD(tasa);
-                mostrarNotificacion(`💰 Tasa manual: Bs ${tasa}`, 'warning');
-            } else {
-                mostrarNotificacion('❌ No se actualizó la tasa', 'error');
-            }
-        }
-        
-        if (btnActualizar) {
-            btnActualizar.innerText = '🔄 ACTUALIZAR';
-            btnActualizar.disabled = false;
-        }
-    }
+async function onTasaChange(valor) {
+  setTasa(parseFloat(valor));
+  await _supabase.from('configuracion').update({ tasa_bcv: parseFloat(valor) }).eq('id', 1);
+}
 
-    function mostrarNotificacion(mensaje, tipo) {
-        let notif = document.getElementById('toast-notification');
-        if (!notif) {
-            notif = document.createElement('div');
-            notif.id = 'toast-notification';
-            notif.className = 'toast';
-            document.body.appendChild(notif);
-        }
-        
-        const colores = { success: '#22c55e', error: '#ef4444', warning: '#f59e0b' };
-        notif.style.backgroundColor = colores[tipo] || '#3b82f6';
-        notif.textContent = mensaje;
-        notif.style.opacity = '1';
-        
-        setTimeout(() => { notif.style.opacity = '0'; }, 3000);
-    }
+async function actualizarTasaAutomatica() {
+  const btn = document.querySelector('.btn-actualizar-tasa');
+  btn.textContent = '⏳ Buscando...';
+  btn.disabled = true;
 
-    function showTab(id) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.getElementById('btn-' + id).classList.add('active');
-        if(id === 'pos') cargarPOS();
-        if(id === 'inventario') cargarInventario();
-        if(id === 'historial') cargarHistorial();
-        if(id === 'caja') cargarCaja();
-    }
+  const apis = [
+    { url: 'https://bcv-api.vercel.app/api/rates',            get: d => d.dollar?.rate },
+    { url: 'https://pydolarve.org/api/v1/dollar/',            get: d => d.monitors?.bcv?.price },
+    { url: 'https://ve.dolarapi.com/v1/dolares/oficial',      get: d => d.promedio },
+  ];
+  const proxy = 'https://api.allorigins.win/get?url=';
 
-    async function cargarPOS() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        productosLocal = data || [];
-        renderPOS();
-    }
+  let tasa = null;
+  for (const api of apis) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(api.url));
+      const json = await res.json();
+      const data = JSON.parse(json.contents);
+      const val = api.get(data);
+      if (val && !isNaN(val)) { tasa = parseFloat(val); break; }
+    } catch (_) { /* próxima API */ }
+  }
 
-    function renderPOS() {
-        document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
-            <div class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
-                <strong>${p.nombre}</strong><br>
-                <span style="font-size:1.1rem;">$${p.precio_venta.toFixed(2)}</span><br>
-                <small style="color:${p.stock > 0 ? '#166534' : '#991b1b'}">${p.stock} disponibles</small>
-            </div>
-        `).join('');
-    }
+  btn.textContent = '🔄 Actualizar';
+  btn.disabled = false;
 
-    function addCart(id) {
-        const p = productosLocal.find(x => x.id === id);
-        if (!p || p.stock <= 0) return;
-        
-        const itemEnCarrito = carrito.find(item => item.id === id);
-        if (itemEnCarrito) {
-            itemEnCarrito.cantidad = (itemEnCarrito.cantidad || 1) + 1;
-        } else {
-            carrito.push({...p, cantidad: 1});
-        }
-        
-        p.stock--;
-        renderPOS();
-        dibujarCarrito();
+  if (tasa) {
+    await onTasaChange(tasa.toFixed(2));
+    mostrarNotificacion(`✅ Tasa BCV actualizada: Bs ${tasa.toFixed(2)}`, 'success');
+  } else {
+    const manual = prompt('⚠️ No se pudo obtener la tasa automáticamente.\nIngresa la tasa manualmente:', document.getElementById('tasa-val').value);
+    if (manual && !isNaN(manual)) {
+      await onTasaChange(parseFloat(manual).toFixed(2));
+      mostrarNotificacion(`💰 Tasa manual: Bs ${parseFloat(manual).toFixed(2)}`, 'warning');
     }
+  }
+}
 
-    function dibujarCarrito() {
-        const tasa = parseFloat(document.getElementById('tasa-val').value) || 0;
-        let total = 0;
-        
-        document.getElementById('carrito-items').innerHTML = carrito.map((item, i) => {
-            const subtotal = item.precio_venta * (item.cantidad || 1);
-            total += subtotal;
-            return `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:5px; background:white; border-radius:6px;">
-                    <div><strong>${item.nombre}</strong><br><small>$${item.precio_venta.toFixed(2)} x ${item.cantidad || 1}</small></div>
-                    <div><span style="color:var(--success); font-weight:bold;">$${subtotal.toFixed(2)}</span>
-                    <button onclick="eliminarDelCarrito(${i})" style="margin-left:8px; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer; width:24px; height:24px;">✕</button></div>
-                </div>
-            `;
-        }).join('');
-        
-        if (carrito.length === 0) document.getElementById('carrito-items').innerHTML = '<div style="color:#94a3b8; text-align:center;">No hay productos en el carrito</div>';
-        
-        document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
-        document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
-    }
-    
-    function eliminarDelCarrito(index) {
-        const item = carrito[index];
-        const productoOriginal = productosLocal.find(p => p.id === item.id);
-        if (productoOriginal) productoOriginal.stock += (item.cantidad || 1);
-        carrito.splice(index, 1);
-        renderPOS();
-        dibujarCarrito();
-    }
+// ===== TOAST =====
+function mostrarNotificacion(mensaje, tipo) {
+  const notif = document.getElementById('toast-notification');
+  const colores = { success: '#0e9f6e', error: '#e02424', warning: '#d97706' };
+  notif.style.backgroundColor = colores[tipo] || '#1a56db';
+  notif.textContent = mensaje;
+  notif.style.opacity = '1';
+  setTimeout(() => { notif.style.opacity = '0'; }, 3200);
+}
 
-    async function finalizarVenta(estado) {
-        if(carrito.length === 0) { alert("No hay productos en el carrito"); return; }
-        const totalUsd = carrito.reduce((acc, i) => acc + (i.precio_venta * (i.cantidad || 1)), 0);
-        const tasa = parseFloat(document.getElementById('tasa-val').value);
-        const nombreCliente = document.getElementById('cliente-nombre').value.trim() || 'Cliente General';
-        const productosDetalle = carrito.map(i => `${i.nombre} x${i.cantidad || 1}`).join(', ');
-        
-        let gananciaBs = 0;
-        for (const item of carrito) {
-            const gananciaPorUnidadUsd = item.precio_venta - (item.costo || 0);
-            gananciaBs += gananciaPorUnidadUsd * tasa * (item.cantidad || 1);
-        }
-        
-        const { error } = await _supabase.from('ventas').insert({
-            cliente_nombre: nombreCliente, 
-            productos_detalle: productosDetalle,
-            total_usd: totalUsd, 
-            tasa_momento: tasa, 
-            total_bs: totalUsd * tasa,
-            ganancia_bs: gananciaBs,
-            estado: estado
-        });
+// ===== NAV =====
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('btn-' + id).classList.add('active');
+  if (id === 'pos') cargarPOS();
+  if (id === 'inventario') cargarInventario();
+  if (id === 'historial') { cargarHistorial(); cargarPendientes(); }
+  if (id === 'caja') cargarCaja();
+}
 
-        if(error) { alert("Error al guardar: " + error.message); return; }
+// ===== POS =====
+async function cargarPOS() {
+  const { data } = await _supabase.from('productos').select('*').order('nombre');
+  productosLocal = data || [];
+  renderPOS();
+}
 
-        for (const item of carrito) {
-            const productoActual = productosLocal.find(p => p.id === item.id);
-            await _supabase.from('productos').update({ stock: productoActual.stock }).eq('id', item.id);
-        }
+function renderPOS() {
+  const tasa = tasaActual;
+  document.getElementById('pos-lista').innerHTML = productosLocal.map(p => `
+    <div class="product-btn ${p.stock <= 0 ? 'agotado' : ''}" onclick="${p.stock > 0 ? `addCart(${p.id})` : ''}">
+      <span class="prod-nombre">${p.nombre}</span>
+      <span class="prod-precio-usd">$${p.precio_venta.toFixed(2)}</span>
+      <span class="prod-precio-bs">Bs ${(p.precio_venta * tasa).toFixed(2)}</span>
+      <span class="prod-stock">${p.stock > 0 ? `${p.stock} disponibles` : 'Agotado'}</span>
+    </div>
+  `).join('');
+}
 
-        alert(`Venta ${estado === 'pagado' ? 'completada' : 'registrada como pendiente'}`);
-        limpiarCarrito();
-        if (estado === 'pagado') await cargarCaja();
+function actualizarPreciosBs() {
+  // Actualiza precios Bs en los botones del POS sin recargar desde BD
+  document.querySelectorAll('.product-btn').forEach((btn, i) => {
+    const bsEl = btn.querySelector('.prod-precio-bs');
+    const usdEl = btn.querySelector('.prod-precio-usd');
+    if (bsEl && usdEl) {
+      const usd = parseFloat(usdEl.textContent.replace('$', ''));
+      bsEl.textContent = `Bs ${(usd * tasaActual).toFixed(2)}`;
     }
+  });
+}
 
-    function limpiarCarrito() {
-        for (const item of carrito) {
-            const productoOriginal = productosLocal.find(p => p.id === item.id);
-            if (productoOriginal) productoOriginal.stock += (item.cantidad || 1);
-        }
-        carrito = [];
-        document.getElementById('cliente-nombre').value = '';
-        renderPOS();
-        dibujarCarrito();
-    }
+function addCart(id) {
+  const p = productosLocal.find(x => x.id === id);
+  if (!p || p.stock <= 0) return;
+  const item = carrito.find(i => i.id === id);
+  if (item) {
+    item.cantidad++;
+  } else {
+    carrito.push({ ...p, cantidad: 1 });
+  }
+  p.stock--;
+  renderPOS();
+  dibujarCarrito();
+}
 
-    async function cargarInventario() {
-        const { data } = await _supabase.from('productos').select('*').order('nombre');
-        document.querySelector('#tabla-inv tbody').innerHTML = data.map(p => {
-            const gananciaUnidadUsd = (p.precio_venta - (p.costo || 0)).toFixed(2);
-            return `
-               <tr>
-                <td><input type="text" id="nombre-${p.id}" value="${p.nombre}" class="nombre-input" style="width:140px;" onchange="actualizarNombre(${p.id}, this.value)"></td>
-                <td>
-                    <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">-</button>
-                    <span style="font-weight:bold; margin:0 10px; font-size:1.1rem;">${p.stock}</span>
-                    <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
-                   </td>
-                   <td><input type="number" id="costo-${p.id}" value="${p.costo || 0}" step="0.01" onchange="actualizarCosto(${p.id}, this.value)" style="width:100px;"> $</td>
-                   <td><input type="number" id="precio-${p.id}" value="${p.precio_venta}" step="0.01" onchange="actualizarPrecio(${p.id}, this.value)" style="width:100px;"> $</td>
-                <td style="color:var(--success); font-weight:bold;">$${gananciaUnidadUsd}</td>
-                <td>
-                    <button class="btn-editar" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
-                    <button class="btn-del" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️ Eliminar</button>
-                </td>
-                </tr>
-        `}).join('');
-    }
-    
-    async function actualizarNombre(id, nuevoNombre) {
-        if (!nuevoNombre.trim()) { alert("El nombre no puede estar vacío"); return cargarInventario(); }
-        window.tempNombre = { id, nombre: nuevoNombre.trim() };
-    }
-    
-    async function actualizarCosto(id, valor) { window.tempCosto = { id, valor: parseFloat(valor) }; }
-    async function actualizarPrecio(id, valor) { window.tempPrecio = { id, valor: parseFloat(valor) }; }
-    
-    async function guardarCambiosProducto(id) {
-        const updates = {};
-        if (window.tempNombre && window.tempNombre.id === id) updates.nombre = window.tempNombre.nombre;
-        if (window.tempCosto && window.tempCosto.id === id) updates.costo = window.tempCosto.valor;
-        if (window.tempPrecio && window.tempPrecio.id === id) updates.precio_venta = window.tempPrecio.valor;
-        
-        if (Object.keys(updates).length > 0) {
-            const { error } = await _supabase.from('productos').update(updates).eq('id', id);
-            if (error) alert("Error: " + error.message);
-            else alert("✅ Producto actualizado");
-            cargarInventario();
-            cargarPOS();
-        }
-    }
-    
-    async function eliminarHelado(id, nombre) {
-        if(confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) {
-            const { error } = await _supabase.from('productos').delete().eq('id', id);
-            if (error) alert("Error: " + error.message);
-            else alert(`✅ "${nombre}" eliminado`);
-            cargarInventario();
-            cargarPOS();
-        }
-    }
-    
-    async function modStock(id, actual, cambio) {
-        const nuevoStock = Math.max(0, actual + cambio);
-        await _supabase.from('productos').update({ stock: nuevoStock }).eq('id', id);
-        cargarInventario();
-        cargarPOS();
-    }
-    
-    function abrirModalAgregar() {
-        document.getElementById('modal-agregar').style.display = 'flex';
-        document.getElementById('nuevo-nombre').value = '';
-        document.getElementById('nuevo-stock').value = '0';
-        document.getElementById('nuevo-costo').value = '0';
-        document.getElementById('nuevo-precio').value = '0';
-    }
-    
-    function cerrarModal() { document.getElementById('modal-agregar').style.display = 'none'; }
-    
-    async function agregarHelado() {
-        const nombre = document.getElementById('nuevo-nombre').value.trim();
-        const stock = parseInt(document.getElementById('nuevo-stock').value) || 0;
-        const costo = parseFloat(document.getElementById('nuevo-costo').value) || 0;
-        const precio = parseFloat(document.getElementById('nuevo-precio').value) || 0;
-        
-        if (!nombre) { alert("Por favor ingresa un nombre para el helado"); return; }
-        
-        const { error } = await _supabase.from('productos').insert({ nombre, stock, costo, precio_venta: precio });
-        
-        if (error) { alert("Error: " + error.message); }
-        else { alert(`✅ Helado "${nombre}" agregado correctamente`); cerrarModal(); cargarInventario(); cargarPOS(); }
-    }
+function dibujarCarrito() {
+  const tasa = tasaActual;
+  let total = 0;
+  if (carrito.length === 0) {
+    document.getElementById('carrito-items').innerHTML = '<div class="carrito-empty">No hay productos en el carrito</div>';
+  } else {
+    document.getElementById('carrito-items').innerHTML = carrito.map((item, i) => {
+      const subtotal = item.precio_venta * item.cantidad;
+      total += subtotal;
+      return `
+        <div class="carrito-item">
+          <div class="carrito-item-info">
+            <strong>${item.nombre}</strong>
+            <small>$${item.precio_venta.toFixed(2)} × ${item.cantidad}</small>
+          </div>
+          <div class="carrito-item-right">
+            <span class="carrito-item-subtotal">$${subtotal.toFixed(2)}</span>
+            <button class="btn-remove-item" onclick="eliminarDelCarrito(${i})">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  document.getElementById('total-usd').textContent = `$${total.toFixed(2)}`;
+  document.getElementById('total-bs').textContent = `Bs ${(total * tasa).toFixed(2)}`;
+}
 
-    async function cargarHistorial() {
-        const mes = document.getElementById('filtro-mes').value;
-        console.log('Cargando historial para mes:', mes);
-        
-        const { data, error } = await _supabase
-            .from('ventas')
-            .select('*')
-            .order('fecha', { ascending: false });
-        
-        if (error) {
-            console.error('Error al cargar historial:', error);
-            alert('Error al cargar historial: ' + error.message);
-            return;
-        }
-        
-        console.log('Ventas obtenidas:', data);
-        
-        let filtrados = data || [];
-        if (mes) {
-            filtrados = filtrados.filter(v => {
-                if (!v.fecha) return false;
-                return v.fecha.startsWith(mes);
-            });
-        }
-        
-        console.log('Ventas filtradas:', filtrados.length);
-        
-        if (filtrados.length === 0) {
-            document.querySelector('#tabla-hist tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay ventas en este período</td></tr>';
-            return;
-        }
-        
-        document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
-             <tr>
-                <td>${v.fecha ? new Date(v.fecha).toLocaleDateString() : 'Sin fecha'}</td>
-                <td>${v.cliente_nombre || 'Cliente General'}</td>
-                <td>$${Number(v.total_usd || 0).toFixed(2)}</td>
-                <td>Bs ${Number(v.total_bs || 0).toFixed(2)}</td>
-                <td style="color:var(--success);">Bs ${Number(v.ganancia_bs || 0).toFixed(2)}</td>
-                <td><span class="badge-${v.estado}">${v.estado === 'pagado' ? '✓ Pagado' : '⏳ Pendiente'}</span></td>
-                <td>
-                    ${v.estado === 'pendiente' ? `<button class="btn-pagar" onclick="confirmarPago(${v.id}, ${v.total_usd})">💰 Confirmar Pago</button>` : ''}
-                    <button class="btn-del" onclick="borrarV(${v.id})">🗑️ Eliminar</button>
-                </td>
-             <\/tr>
-        `).join('');
-    }
-    
-    async function confirmarPago(id, totalUsd) {
-        if(confirm(`¿Confirmar pago de $${totalUsd.toFixed(2)}?`)) {
-            const tasaActual = parseFloat(document.getElementById('tasa-val').value);
-            const totalBsActual = totalUsd * tasaActual;
-            
-            const { data: venta } = await _supabase.from('ventas').select('productos_detalle').eq('id', id).single();
-            let gananciaBs = 0;
-            if (venta && venta.productos_detalle) {
-                const productosVendidos = venta.productos_detalle.split(', ');
-                for (const prodDetalle of productosVendidos) {
-                    const match = prodDetalle.match(/(.+?)\s*x(\d+)/);
-                    if (match) {
-                        const nombreProducto = match[1].trim();
-                        const cantidad = parseInt(match[2]);
-                        const { data: producto } = await _supabase.from('productos').select('costo, precio_venta').eq('nombre', nombreProducto).single();
-                        if (producto) {
-                            const gananciaUnidadUsd = producto.precio_venta - (producto.costo || 0);
-                            gananciaBs += gananciaUnidadUsd * tasaActual * cantidad;
-                        }
-                    }
-                }
-            }
-            
-            const { error } = await _supabase.from('ventas').update({ 
-                estado: 'pagado', 
-                tasa_momento: tasaActual, 
-                total_bs: totalBsActual,
-                ganancia_bs: gananciaBs
-            }).eq('id', id);
-            
-            if(error) alert("Error: " + error.message);
-            else { alert("Pago confirmado"); cargarHistorial(); cargarCaja(); }
-        }
-    }
+function eliminarDelCarrito(index) {
+  const item = carrito[index];
+  const prod = productosLocal.find(p => p.id === item.id);
+  if (prod) prod.stock += item.cantidad;
+  carrito.splice(index, 1);
+  renderPOS();
+  dibujarCarrito();
+}
 
-    async function borrarV(id) {
-        if(confirm("¿Eliminar esta venta?")) {
-            await _supabase.from('ventas').delete().eq('id', id);
-            cargarHistorial();
-            cargarCaja();
-        }
-    }
+async function finalizarVenta(estado) {
+  if (carrito.length === 0) { mostrarNotificacion('⚠️ El carrito está vacío', 'error'); return; }
 
-    async function cargarCaja() {
-        const mes = document.getElementById('filtro-caja').value;
-        console.log('Cargando caja para mes:', mes);
-        
-        const { data, error } = await _supabase
-            .from('ventas')
-            .select('*');
-        
-        if (error) {
-            console.error('Error al cargar caja:', error);
-            alert('Error al cargar caja: ' + error.message);
-            return;
-        }
-        
-        if (!data) {
-            console.log('No hay datos de ventas');
-            return;
-        }
-        
-        console.log('Total de ventas:', data.length);
-        
-        let ventasMes = data;
-        if (mes) {
-            ventasMes = data.filter(v => v.fecha && v.fecha.startsWith(mes));
-        }
-        
-        console.log('Ventas del mes:', ventasMes.length);
-        
-        const ventasPagadasMes = ventasMes.filter(v => v.estado === 'pagado');
-        const totalUsd = ventasPagadasMes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
-        const totalBs = ventasPagadasMes.reduce((a, b) => a + (Number(b.total_bs) || 0), 0);
-        const gananciaBs = ventasPagadasMes.reduce((a, b) => a + (Number(b.ganancia_bs) || 0), 0);
-        
-        console.log('Totales:', { totalUsd, totalBs, gananciaBs });
-        
-        document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
-        document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
-        document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
-        
-        const tasaActual = parseFloat(document.getElementById('tasa-val').value) || 0;
-        document.getElementById('tasa-actual-ganancia').textContent = tasaActual.toFixed(2);
-        const gananciaUsd = tasaActual > 0 ? gananciaBs / tasaActual : 0;
-        document.getElementById('caja-ganancia-usd').textContent = `$${gananciaUsd.toFixed(2)}`;
-        
-        const ventasPendientes = data.filter(v => v.estado === 'pendiente');
-        const totalPendienteUsd = ventasPendientes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
-        document.getElementById('pendiente-usd').textContent = `$${totalPendienteUsd.toFixed(2)}`;
-        document.getElementById('pendiente-bs-equivalente').textContent = `Bs ${(totalPendienteUsd * tasaActual).toFixed(2)}`;
-    }
+  const nombreCliente = document.getElementById('cliente-nombre').value.trim();
+  const referencia = document.getElementById('referencia-pago').value.trim();
 
-    // ========== REGISTRO DE PWA (SERVICE WORKER) ==========
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('✅ Service Worker registrado con éxito');
-            })
-            .catch(error => {
-                console.log('❌ Error al registrar Service Worker:', error);
-            });
-    }
+  // Validaciones obligatorias
+  let valido = true;
+  const campoNombre = document.getElementById('cliente-nombre');
+  const campoRef = document.getElementById('referencia-pago');
 
-    // Detectar si la app se abrió desde la pantalla de inicio
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        document.body.classList.add('pwa-mode');
+  if (!nombreCliente) {
+    campoNombre.classList.add('error');
+    campoNombre.placeholder = '⚠️ Nombre obligatorio';
+    valido = false;
+  } else { campoNombre.classList.remove('error'); }
+
+  if (!referencia) {
+    campoRef.classList.add('error');
+    campoRef.placeholder = '⚠️ Referencia obligatoria';
+    valido = false;
+  } else { campoRef.classList.remove('error'); }
+
+  if (!valido) { mostrarNotificacion('⚠️ Completa nombre y referencia', 'error'); return; }
+
+  const totalUsd = carrito.reduce((acc, i) => acc + (i.precio_venta * i.cantidad), 0);
+  const tasa = tasaActual;
+  const productosDetalle = carrito.map(i => `${i.nombre} x${i.cantidad}`).join(', ');
+
+  let gananciaBs = 0;
+  for (const item of carrito) {
+    gananciaBs += (item.precio_venta - (item.costo || 0)) * tasa * item.cantidad;
+  }
+
+  const { error } = await _supabase.from('ventas').insert({
+    cliente_nombre: nombreCliente,
+    referencia_pago: referencia,
+    productos_detalle: productosDetalle,
+    total_usd: totalUsd,
+    tasa_momento: tasa,
+    total_bs: totalUsd * tasa,
+    ganancia_bs: estado === 'pagado' ? gananciaBs : 0,
+    estado: estado
+  });
+
+  if (error) { mostrarNotificacion('❌ Error: ' + error.message, 'error'); return; }
+
+  // Actualizar stock en BD
+  for (const item of carrito) {
+    const prod = productosLocal.find(p => p.id === item.id);
+    if (prod) await _supabase.from('productos').update({ stock: prod.stock }).eq('id', item.id);
+  }
+
+  mostrarNotificacion(estado === 'pagado' ? '✅ Venta completada' : '⏳ Registrado como pendiente', 'success');
+  limpiarCarrito();
+  if (estado === 'pagado') cargarCaja();
+}
+
+function limpiarCarrito() {
+  for (const item of carrito) {
+    const prod = productosLocal.find(p => p.id === item.id);
+    if (prod) prod.stock += item.cantidad;
+  }
+  carrito = [];
+  document.getElementById('cliente-nombre').value = '';
+  document.getElementById('referencia-pago').value = '';
+  document.getElementById('cliente-nombre').classList.remove('error');
+  document.getElementById('referencia-pago').classList.remove('error');
+  renderPOS();
+  dibujarCarrito();
+}
+
+// ===== INVENTARIO =====
+async function cargarInventario() {
+  const { data } = await _supabase.from('productos').select('*').order('nombre');
+  document.querySelector('#tabla-inv tbody').innerHTML = (data || []).map(p => {
+    const ganancia = (p.precio_venta - (p.costo || 0)).toFixed(2);
+    return `
+      <tr>
+        <td><input type="text" class="form-input nombre-input" id="nombre-${p.id}" value="${p.nombre}" onchange="tempNombre=${JSON.stringify({id: p.id})}; tempNombreVal=this.value;"></td>
+        <td>
+          <div class="stock-ctrl">
+            <button class="btn-stock btn-minus" onclick="modStock(${p.id}, ${p.stock}, -1)">−</button>
+            <span class="stock-num">${p.stock}</span>
+            <button class="btn-stock btn-plus" onclick="modStock(${p.id}, ${p.stock}, 1)">+</button>
+          </div>
+        </td>
+        <td><input type="number" class="form-input price-input" id="costo-${p.id}" value="${p.costo || 0}" step="0.01"> $</td>
+        <td><input type="number" class="form-input price-input" id="precio-${p.id}" value="${p.precio_venta}" step="0.01"> $</td>
+        <td class="mono" style="color:var(--success); font-weight:700;">$${ganancia}</td>
+        <td>
+          <button class="btn btn-sm btn-ghost" onclick="guardarCambiosProducto(${p.id})">💾 Guardar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarHelado(${p.id}, '${p.nombre}')">🗑️</button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function modStock(id, actual, cambio) {
+  const nuevo = Math.max(0, actual + cambio);
+  await _supabase.from('productos').update({ stock: nuevo }).eq('id', id);
+  cargarInventario(); cargarPOS();
+}
+
+async function guardarCambiosProducto(id) {
+  const updates = {
+    nombre: document.getElementById(`nombre-${id}`).value.trim(),
+    costo: parseFloat(document.getElementById(`costo-${id}`).value),
+    precio_venta: parseFloat(document.getElementById(`precio-${id}`).value),
+  };
+  if (!updates.nombre) { mostrarNotificacion('⚠️ El nombre no puede estar vacío', 'error'); return; }
+  const { error } = await _supabase.from('productos').update(updates).eq('id', id);
+  if (error) mostrarNotificacion('❌ Error: ' + error.message, 'error');
+  else mostrarNotificacion('✅ Producto actualizado', 'success');
+  cargarInventario(); cargarPOS();
+}
+
+async function eliminarHelado(id, nombre) {
+  if (confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) {
+    const { error } = await _supabase.from('productos').delete().eq('id', id);
+    if (error) mostrarNotificacion('❌ Error: ' + error.message, 'error');
+    else mostrarNotificacion(`✅ "${nombre}" eliminado`, 'success');
+    cargarInventario(); cargarPOS();
+  }
+}
+
+function abrirModalAgregar() {
+  ['nuevo-nombre', 'nuevo-stock', 'nuevo-costo', 'nuevo-precio'].forEach(id => {
+    document.getElementById(id).value = id === 'nuevo-nombre' ? '' : '0';
+  });
+  document.getElementById('modal-agregar').style.display = 'flex';
+}
+function cerrarModal() { document.getElementById('modal-agregar').style.display = 'none'; }
+
+async function agregarHelado() {
+  const nombre = document.getElementById('nuevo-nombre').value.trim();
+  if (!nombre) { mostrarNotificacion('⚠️ Ingresa un nombre', 'error'); return; }
+  const stock = parseInt(document.getElementById('nuevo-stock').value) || 0;
+  const costo = parseFloat(document.getElementById('nuevo-costo').value) || 0;
+  const precio = parseFloat(document.getElementById('nuevo-precio').value) || 0;
+  const { error } = await _supabase.from('productos').insert({ nombre, stock, costo, precio_venta: precio });
+  if (error) { mostrarNotificacion('❌ Error: ' + error.message, 'error'); return; }
+  mostrarNotificacion(`✅ "${nombre}" agregado`, 'success');
+  cerrarModal(); cargarInventario(); cargarPOS();
+}
+
+// ===== PENDIENTES (live Bs) =====
+async function cargarPendientes() {
+  const { data } = await _supabase.from('ventas').select('*').eq('estado', 'pendiente').order('fecha', { ascending: false });
+  const lista = document.getElementById('pendientes-lista');
+  const section = document.getElementById('pendientes-section');
+  if (!data || data.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  lista.innerHTML = data.map(v => {
+    const bsHoy = (v.total_usd * tasaActual).toFixed(2);
+    const fecha = v.fecha ? new Date(v.fecha).toLocaleDateString('es-VE') : '';
+    return `
+      <div class="pendiente-card" id="pcard-${v.id}">
+        <div class="pendiente-info">
+          <div class="pendiente-cliente">${v.cliente_nombre || 'Sin nombre'}</div>
+          <div class="pendiente-fecha">${fecha}</div>
+          <div class="pendiente-detalle">${v.productos_detalle || ''}</div>
+          ${v.referencia_pago ? `<div class="pendiente-ref">Ref: ${v.referencia_pago}</div>` : ''}
+          <div class="pendiente-actions">
+            <button class="btn btn-sm btn-success" onclick="confirmarPago(${v.id}, ${v.total_usd})">✅ Confirmar pago</button>
+            <button class="btn btn-sm btn-danger" onclick="borrarV(${v.id})">🗑️</button>
+          </div>
+        </div>
+        <div class="pendiente-montos">
+          <div class="pendiente-usd">$${Number(v.total_usd).toFixed(2)}</div>
+          <div class="pendiente-bs" id="pbs-${v.id}">Bs ${bsHoy}</div>
+          <div class="pendiente-bs-label">tasa hoy</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function actualizarPendientesLive() {
+  // Recalcula los montos en Bs de los pendientes con la tasa actual sin recargar BD
+  document.querySelectorAll('[id^="pbs-"]').forEach(el => {
+    const id = el.id.replace('pbs-', '');
+    const card = document.getElementById(`pcard-${id}`);
+    if (!card) return;
+    const usdEl = card.querySelector('.pendiente-usd');
+    if (usdEl) {
+      const usd = parseFloat(usdEl.textContent.replace('$', ''));
+      el.textContent = `Bs ${(usd * tasaActual).toFixed(2)}`;
     }
+  });
+  // También actualizar totales del carrito
+  dibujarCarrito();
+}
+
+// ===== HISTORIAL =====
+async function cargarHistorial() {
+  const mes = document.getElementById('filtro-mes').value;
+  const { data, error } = await _supabase.from('ventas').select('*').eq('estado', 'pagado').order('fecha', { ascending: false });
+  if (error) { mostrarNotificacion('❌ Error al cargar historial', 'error'); return; }
+
+  let filtrados = (data || []).filter(v => !mes || (v.fecha && v.fecha.startsWith(mes)));
+
+  if (filtrados.length === 0) {
+    document.querySelector('#tabla-hist tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-500);padding:20px;">No hay ventas confirmadas en este período</td></tr>';
+    return;
+  }
+
+  document.querySelector('#tabla-hist tbody').innerHTML = filtrados.map(v => `
+    <tr>
+      <td>${v.fecha ? new Date(v.fecha).toLocaleDateString('es-VE') : '—'}</td>
+      <td><strong>${v.cliente_nombre || 'General'}</strong></td>
+      <td class="mono" style="font-size:0.75rem;color:var(--gray-500);">${v.referencia_pago || '—'}</td>
+      <td style="font-size:0.78rem;">${v.productos_detalle || ''}</td>
+      <td class="mono" style="font-weight:700;">$${Number(v.total_usd||0).toFixed(2)}</td>
+      <td class="mono">Bs ${Number(v.total_bs||0).toFixed(2)}</td>
+      <td class="mono" style="color:var(--success);">Bs ${Number(v.ganancia_bs||0).toFixed(2)}</td>
+      <td><span class="badge badge-pagado">✓ Pagado</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="borrarV(${v.id})">🗑️</button></td>
+    </tr>`).join('');
+}
+
+async function confirmarPago(id, totalUsd) {
+  if (!confirm(`¿Confirmar pago de $${Number(totalUsd).toFixed(2)}?`)) return;
+  const tasa = tasaActual;
+  const totalBsAhora = totalUsd * tasa;
+
+  // Calcular ganancia con tasa del momento del cobro
+  const { data: venta } = await _supabase.from('ventas').select('productos_detalle').eq('id', id).single();
+  let gananciaBs = 0;
+  if (venta?.productos_detalle) {
+    for (const part of venta.productos_detalle.split(', ')) {
+      const match = part.match(/(.+?)\s*x(\d+)/);
+      if (match) {
+        const { data: prod } = await _supabase.from('productos').select('costo,precio_venta').eq('nombre', match[1].trim()).single();
+        if (prod) gananciaBs += (prod.precio_venta - (prod.costo || 0)) * tasa * parseInt(match[2]);
+      }
+    }
+  }
+
+  const { error } = await _supabase.from('ventas').update({
+    estado: 'pagado',
+    tasa_momento: tasa,
+    total_bs: totalBsAhora,
+    ganancia_bs: gananciaBs,
+    fecha: new Date().toISOString() // registra en el mes de cobro
+  }).eq('id', id);
+
+  if (error) mostrarNotificacion('❌ Error: ' + error.message, 'error');
+  else {
+    mostrarNotificacion('✅ Pago confirmado', 'success');
+    cargarPendientes();
+    cargarHistorial();
+    cargarCaja();
+  }
+}
+
+async function borrarV(id) {
+  if (confirm('¿Eliminar esta venta?')) {
+    await _supabase.from('ventas').delete().eq('id', id);
+    cargarPendientes();
+    cargarHistorial();
+    cargarCaja();
+  }
+}
+
+// ===== CAJA =====
+async function cargarCaja() {
+  const mes = document.getElementById('filtro-caja').value;
+  const { data } = await _supabase.from('ventas').select('*');
+  if (!data) return;
+
+  let ventasMes = data;
+  if (mes) ventasMes = data.filter(v => v.fecha && v.fecha.startsWith(mes));
+
+  const pagadas = ventasMes.filter(v => v.estado === 'pagado');
+  const totalUsd = pagadas.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
+  const totalBs = pagadas.reduce((a, b) => a + (Number(b.total_bs) || 0), 0);
+  const gananciaBs = pagadas.reduce((a, b) => a + (Number(b.ganancia_bs) || 0), 0);
+
+  document.getElementById('caja-total-usd').textContent = `$${totalUsd.toFixed(2)}`;
+  document.getElementById('caja-total-bs').textContent = `Bs ${totalBs.toFixed(2)}`;
+  document.getElementById('caja-ganancia-bs').textContent = `Bs ${gananciaBs.toFixed(2)}`;
+  document.getElementById('tasa-actual-ganancia').textContent = tasaActual.toFixed(2);
+  const gananciaUsd = tasaActual > 0 ? gananciaBs / tasaActual : 0;
+  document.getElementById('caja-ganancia-usd').textContent = `$${gananciaUsd.toFixed(2)}`;
+
+  const pendientes = data.filter(v => v.estado === 'pendiente');
+  const totalPendUsd = pendientes.reduce((a, b) => a + (Number(b.total_usd) || 0), 0);
+  document.getElementById('pendiente-usd').textContent = `$${totalPendUsd.toFixed(2)}`;
+  document.getElementById('pendiente-bs-equivalente').textContent = `Bs ${(totalPendUsd * tasaActual).toFixed(2)}`;
+}
+
+// ===== EXPORTAR PDF =====
+function exportarPDF() {
+  const mes = document.getElementById('filtro-mes').value;
+  const label = mes ? new Date(mes + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' }) : 'Todos los meses';
+  document.getElementById('print-mes-label').textContent = `Período: ${label} — Generado: ${new Date().toLocaleDateString('es-VE')}`;
+  document.getElementById('print-header').style.display = 'block';
+  window.print();
+  setTimeout(() => { document.getElementById('print-header').style.display = 'none'; }, 1000);
+}
+
+// ===== CIERRE DE MES =====
+async function cierreMes() {
+  const mes = document.getElementById('filtro-mes').value;
+  if (!mes) { mostrarNotificacion('⚠️ Selecciona un mes primero', 'error'); return; }
+  const label = new Date(mes + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+  if (!confirm(`¿Hacer cierre de ${label}?\n\nSe eliminarán las ventas CONFIRMADAS de ese mes.\nLos pagos PENDIENTES se conservan hasta que se cobren.`)) return;
+
+  const { data, error } = await _supabase.from('ventas').select('id').eq('estado', 'pagado').like('fecha', `${mes}%`);
+  if (error || !data) { mostrarNotificacion('❌ Error al obtener ventas', 'error'); return; }
+
+  if (data.length === 0) { mostrarNotificacion('ℹ️ No hay ventas confirmadas en ese mes', 'warning'); return; }
+
+  for (const v of data) {
+    await _supabase.from('ventas').delete().eq('id', v.id);
+  }
+
+  mostrarNotificacion(`✅ Cierre de ${label} completado. ${data.length} venta(s) eliminada(s).`, 'success');
+  cargarHistorial();
+  cargarCaja();
+  cargarPendientes();
+}
+
+// ===== PWA =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  document.body.classList.add('pwa-mode');
+}
 </script>
 </body>
 </html>
