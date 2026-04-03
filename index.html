@@ -411,7 +411,7 @@ async function finalizarVenta(estado) {
   const nombreCliente = document.getElementById('cliente-nombre').value.trim();
   const referencia = document.getElementById('referencia-pago').value.trim();
 
-  // Validaciones obligatorias
+  // Validaciones: nombre siempre obligatorio; referencia solo si es pago confirmado
   let valido = true;
   const campoNombre = document.getElementById('cliente-nombre');
   const campoRef = document.getElementById('referencia-pago');
@@ -422,13 +422,16 @@ async function finalizarVenta(estado) {
     valido = false;
   } else { campoNombre.classList.remove('error'); }
 
-  if (!referencia) {
+  if (estado === 'pagado' && !referencia) {
     campoRef.classList.add('error');
-    campoRef.placeholder = '⚠️ Referencia obligatoria';
+    campoRef.placeholder = '⚠️ Referencia obligatoria para pago';
     valido = false;
   } else { campoRef.classList.remove('error'); }
 
-  if (!valido) { mostrarNotificacion('⚠️ Completa nombre y referencia', 'error'); return; }
+  if (!valido) {
+    mostrarNotificacion(estado === 'pagado' ? '⚠️ Completa nombre y referencia' : '⚠️ Ingresa el nombre del cliente', 'error');
+    return;
+  }
 
   const totalUsd = carrito.reduce((acc, i) => acc + (i.precio_venta * i.cantidad), 0);
   const tasa = tasaActual;
@@ -629,7 +632,9 @@ async function cargarHistorial() {
 }
 
 async function confirmarPago(id, totalUsd) {
-  if (!confirm(`¿Confirmar pago de $${Number(totalUsd).toFixed(2)}?`)) return;
+  const referencia = prompt(`✅ Confirmar pago de $${Number(totalUsd).toFixed(2)}\n\nIngresa la referencia del pago móvil:`);
+  if (referencia === null) return; // canceló
+  if (!referencia.trim()) { mostrarNotificacion('⚠️ La referencia es obligatoria para confirmar', 'error'); return; }
   const tasa = tasaActual;
   const totalBsAhora = totalUsd * tasa;
 
@@ -651,6 +656,7 @@ async function confirmarPago(id, totalUsd) {
     tasa_momento: tasa,
     total_bs: totalBsAhora,
     ganancia_bs: gananciaBs,
+    referencia_pago: referencia.trim(),
     fecha: new Date().toISOString() // registra en el mes de cobro
   }).eq('id', id);
 
@@ -664,12 +670,31 @@ async function confirmarPago(id, totalUsd) {
 }
 
 async function borrarV(id) {
-  if (confirm('¿Eliminar esta venta?')) {
-    await _supabase.from('ventas').delete().eq('id', id);
-    cargarPendientes();
-    cargarHistorial();
-    cargarCaja();
+  if (!confirm('⚠️ ¿Estás seguro de eliminar esta venta?\n\nEl stock de los productos se reintegrará al inventario.')) return;
+
+  // Obtener detalle de la venta para reintegrar stock
+  const { data: venta } = await _supabase.from('ventas').select('productos_detalle').eq('id', id).single();
+  if (venta?.productos_detalle) {
+    for (const part of venta.productos_detalle.split(', ')) {
+      const match = part.match(/(.+?)\s*x(\d+)/);
+      if (match) {
+        const nombreProd = match[1].trim();
+        const cantidad = parseInt(match[2]);
+        // Obtener stock actual y sumar
+        const { data: prod } = await _supabase.from('productos').select('id, stock').eq('nombre', nombreProd).single();
+        if (prod) {
+          await _supabase.from('productos').update({ stock: prod.stock + cantidad }).eq('id', prod.id);
+        }
+      }
+    }
   }
+
+  await _supabase.from('ventas').delete().eq('id', id);
+  mostrarNotificacion('🗑️ Venta eliminada y stock reintegrado', 'success');
+  cargarPendientes();
+  cargarHistorial();
+  cargarCaja();
+  if (document.getElementById('pos').classList.contains('active')) cargarPOS();
 }
 
 // ===== CAJA =====
